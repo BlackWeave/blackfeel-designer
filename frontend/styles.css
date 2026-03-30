@@ -712,8 +712,8 @@ h3,
 
 /* Inspiration Button */
 .btn-inspiration {
-  background-color: #7993a3;
-  color: #121626e6;
+  background-color: #121626e6;
+  color: #fdfdfde6;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -730,7 +730,7 @@ h3,
 }
 
 .btn-inspiration:hover {
-  background-color: #121626e6;
+  background-color: #4a565ce6;
   transform: translateY(-1px);
 }
 
