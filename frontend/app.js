@@ -3,8 +3,8 @@ const API_BASE = '/api';
 
 const CURATED_INSPIRATION = [
     {
-        prompt: "Minimalist sleepy cat next to coffee, warm tones",
-        url: "https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=400"
+        prompt: "Raymond Reddington from The BlackList.",
+        url: "https://cdn.blackfeel.co.in/designs/12ee2c0b-175f-4422-972f-87c9a3a255c0.webp"
     },
     {
         prompt: "Retro synthwave sunset grid, neon pink & blue",
