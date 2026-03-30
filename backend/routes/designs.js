@@ -4,8 +4,67 @@ import { db } from '../models/database.js';
 import { vertexAiService } from '../services/vertexAi.js';
 import { imageStorage } from '../services/imageStorage.js';
 import { removeBgService } from '../services/removeBg.js';
+import https from 'https';
+import http from 'http';
 
 const router = express.Router();
+
+// Image proxy route — fetches CDN images server-side to bypass CDN CORS cache poisoning.
+// The CDN sometimes caches responses without CORS headers (when first fetched headlessly),
+// causing "No Access-Control-Allow-Origin" errors for canvas operations.
+// By proxying through our server, we always return the image with correct CORS headers.
+// Change this:
+// router.get('/proxy-image', authMiddleware, (req, res) => {
+router.get('/proxy-image', (req, res) => {
+    const { url } = req.query;
+
+    if (!url) {
+        return res.status(400).json({ error: 'url query parameter is required' });
+    }
+
+    // Only allow proxying from our own CDN domain for security
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        return res.status(400).json({ error: 'Invalid URL' });
+    }
+
+    const allowedHosts = ['cdn.blackfeel.co.in'];
+    if (!allowedHosts.includes(parsedUrl.hostname)) {
+        return res.status(403).json({ error: 'Proxying this host is not allowed' });
+    }
+
+    const protocol = parsedUrl.protocol === 'https:' ? https : http;
+
+    const proxyReq = protocol.get(url, (proxyRes) => {
+        // Forward status code
+        res.status(proxyRes.statusCode);
+
+        // Set CORS and content type headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'image/webp');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+
+        // Stream the image back
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('Proxy request error:', err);
+        if (!res.headersSent) {
+            res.status(502).json({ error: 'Failed to fetch image from CDN' });
+        }
+    });
+
+    // Timeout after 10s
+    proxyReq.setTimeout(10000, () => {
+        proxyReq.destroy();
+        if (!res.headersSent) {
+            res.status(504).json({ error: 'CDN request timed out' });
+        }
+    });
+});
 
 // Generate design logic remains unchanged
 router.post('/generate', authMiddleware, async (req, res) => {
@@ -25,7 +84,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
 
         console.log('✨ Generating image with Gemini 3.1 (Nano Banana 2) via Vertex AI...');
         const base64DataUrl = await vertexAiService.generateImage(prompt);
-        
+
         // Remove background for the interactive decal
         const transparentBase64 = await removeBgService.process(base64DataUrl);
 
