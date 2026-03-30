@@ -1,6 +1,20 @@
 // --- Configuration ---
 const API_BASE = '/api';
 
+// Returns a URL that is guaranteed to come with CORS headers when loaded by the browser.
+// CDN responses are sometimes cached without CORS headers ("cache poisoning"), which
+// breaks canvas operations that require crossOrigin="anonymous". Routing through our
+// own backend proxy avoids this entirely. Only CDN images need proxying; local/blob
+// URLs are returned unchanged.
+function getProxiedUrl(url) {
+    if (!url) return url;
+    // Skip proxy for blobs, data URIs, and non-CDN URLs
+    if (url.startsWith('blob:') || url.startsWith('data:') || !url.includes('cdn.blackfeel.co.in')) {
+        return url;
+    }
+    return `${API_BASE}/designs/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 const CURATED_INSPIRATION = [
     {
         prompt: "Raymond Reddington from The BlackList.",
@@ -888,11 +902,49 @@ function handleNewDesign(url, promptText, data) {
     loadDesignToCanvas(newDesign);
 }
 
+// async function loadDesignToCanvas(design) {
+//     // Set the design on the current side
+//     setCurrentDesign(design);
+
+//     const canvasUrl = getProxiedUrl(design.url);
+
+//     try {
+//         // If it's a proxied URL, we must fetch it manually to pass the Auth header
+//         if (canvasUrl.includes('/proxy-image')) {
+//             const response = await fetch(canvasUrl, {
+//                 headers: { 'Authorization': `Bearer ${state.token}` }
+//             });
+
+//             if (!response.ok) throw new Error('Failed to fetch protected image');
+
+//             const blob = await response.blob();
+//             DOM.generatedImage.src = URL.createObjectURL(blob);
+//         } else {
+//             // Fallback for non-proxied URLs
+//             DOM.generatedImage.crossOrigin = 'anonymous';
+//             DOM.generatedImage.src = canvasUrl;
+//         }
+
+//         DOM.designWrapper.classList.remove('hidden');
+
+//         // Apply position constraints
+//         applyTransform(design.x, design.y, design.scale);
+//         updateUI();
+
+//     } catch (error) {
+//         console.error('Failed to load design on canvas:', design.url, error);
+//         alert('Failed to display design. Please try regenerating.');
+//     }
+// }
+
 function loadDesignToCanvas(design) {
     // Set the design on the current side
     setCurrentDesign(design);
 
-    DOM.generatedImage.src = design.url;
+    // Use proxied URL to guarantee CORS headers — CDN may have cached without them.
+    const canvasUrl = getProxiedUrl(design.url);
+    DOM.generatedImage.crossOrigin = 'anonymous';
+    DOM.generatedImage.src = canvasUrl;
     DOM.generatedImage.onerror = () => {
         console.error('Failed to load design on canvas:', design.url);
         alert('Failed to display design. Please try regenerating.');
@@ -1005,7 +1057,8 @@ async function bakeSideComposite(side) {
 
         const designImg = new Image();
         designImg.crossOrigin = "anonymous";
-        designImg.src = design.url;
+        // Use proxied URL so CORS headers are always present (CDN cache poisoning fix)
+        designImg.src = getProxiedUrl(design.url);
 
         await Promise.all([
             new Promise(res => tshirtImg.onload = res),
