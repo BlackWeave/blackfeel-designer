@@ -1,13 +1,38 @@
 // --- Configuration ---
 const API_BASE = '/api';
 
+// --- T-shirt image maps ---
+const TSHIRT_FRONT_MAP = {
+    '#1a1a1a': 'assets/black-tshirt.png',
+    '#f5f5f5': 'assets/white-tshirt.png',
+    '#1e3a8a': 'assets/blue-tshirt.png',
+    '#7f1d1d': 'assets/red-tshirt.png'
+};
+
+const TSHIRT_BACK_MAP = {
+    '#1a1a1a': 'assets/black-tshirt-back.png',
+    '#f5f5f5': 'assets/white-tshirt-back.png',
+    '#1e3a8a': 'assets/blue-tshirt-back.png',
+    '#7f1d1d': 'assets/red-tshirt-back.png'
+};
+
+// Reverse map: src -> color (for color buttons)
+const COLOR_FROM_FRONT_SRC = {
+    'assets/black-tshirt.png': '#1a1a1a',
+    'assets/white-tshirt.png': '#f5f5f5',
+    'assets/blue-tshirt.png': '#1e3a8a',
+    'assets/red-tshirt.png': '#7f1d1d'
+};
+
 // --- State Management ---
 const state = {
     token: localStorage.getItem('luxe_token'),
     user: null,
     generationsLeft: 5,
-    currentDesign: null,
-    currentTshirtColor: '#1a1a1a',
+    currentSide: 'front',       // 'front' | 'back'
+    frontDesign: null,           // { id, url, prompt, x, y, scale }
+    backDesign: null,            // { id, url, prompt, x, y, scale }
+    currentTshirtColor: '#f5f5f5',
     history: []
 };
 
@@ -39,10 +64,14 @@ const DOM = {
     rateLimitDisplay: document.getElementById('rate-limit-display'),
     designWrapper: document.getElementById('generated-image-container'),
     generatedImage: document.getElementById('generated-image'),
-    resizeHandle: document.getElementById('resize-handle'), // Restored
+    resizeHandle: document.getElementById('resize-handle'),
     removeDesignBtn: document.getElementById('remove-design-btn'),
     buyNowBtn: document.getElementById('buy-now-btn'),
     
+    // Side Toggle
+    toggleFront: document.getElementById('toggle-front'),
+    toggleBack: document.getElementById('toggle-back'),
+
     // Archives Modal
     archivesBtn: document.getElementById('archives-btn'),
     archivesModal: document.getElementById('archives-modal'),
@@ -58,6 +87,29 @@ const DOM = {
     shopNowBtn: document.getElementById('shop-now-btn')
 };
 
+// --- Helper: get current design for active side ---
+function getCurrentDesign() {
+    return state.currentSide === 'front' ? state.frontDesign : state.backDesign;
+}
+
+function setCurrentDesign(design) {
+    if (state.currentSide === 'front') {
+        state.frontDesign = design;
+    } else {
+        state.backDesign = design;
+    }
+}
+
+function hasAnyDesign() {
+    return state.frontDesign !== null || state.backDesign !== null;
+}
+
+// --- Get t-shirt image src for current side and color ---
+function getTshirtSrc(color, side) {
+    const map = side === 'back' ? TSHIRT_BACK_MAP : TSHIRT_FRONT_MAP;
+    return map[color] || (side === 'back' ? 'assets/white-tshirt-back.png' : 'assets/white-tshirt.png');
+}
+
 // --- Initialization ---
 async function init() {
     // Ensure BUY NOW button is hidden initially
@@ -66,7 +118,7 @@ async function init() {
     }
     
     setupEventListeners();
-    initInteractJS(); // Restored interact.js initialization
+    initInteractJS();
 
     if (state.token) {
         await checkAuth();
@@ -132,26 +184,31 @@ function setupEventListeners() {
     // Color buttons
     DOM.colorBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const newImageSrc = e.target.dataset.src;
+            const newFrontSrc = e.target.dataset.src;
+            const newColor = COLOR_FROM_FRONT_SRC[newFrontSrc] || '#f5f5f5';
+            state.currentTshirtColor = newColor;
+
+            // Update displayed image for current side
+            const newSrc = getTshirtSrc(newColor, state.currentSide);
             DOM.tshirtImg.style.opacity = 0.5;
             setTimeout(() => {
-                DOM.tshirtImg.src = newImageSrc;
+                DOM.tshirtImg.src = newSrc;
                 DOM.tshirtImg.style.opacity = 1;
             }, 150);
 
-            // Manage active state manually for CSS rings
+            // Manage active state for CSS rings
             DOM.colorBtns.forEach(b => b.classList.remove('is-active'));
             btn.classList.add('is-active');
-
-            const colorMap = {
-                'assets/black-tshirt.png': '#1a1a1a',
-                'assets/white-tshirt.png': '#f5f5f5',
-                'assets/blue-tshirt.png': '#1e3a8a',
-                'assets/red-tshirt.png': '#7f1d1d'
-            };
-            state.currentTshirtColor = colorMap[newImageSrc] || '#1a1a1a';
         });
     });
+
+    // Front/Back toggle
+    if (DOM.toggleFront) {
+        DOM.toggleFront.addEventListener('click', () => switchSide('front'));
+    }
+    if (DOM.toggleBack) {
+        DOM.toggleBack.addEventListener('click', () => switchSide('back'));
+    }
 
     // Generate button
     DOM.generateBtn.addEventListener('click', generateDesign);
@@ -165,6 +222,45 @@ function setupEventListeners() {
     if(DOM.buyNowBtn) {
         DOM.buyNowBtn.addEventListener('click', handleBuyNow);
     }
+}
+
+// --- Side Toggle Logic ---
+function switchSide(side) {
+    if (state.currentSide === side) return;
+
+    // Save current design's position before switching
+    const currentDesign = getCurrentDesign();
+    if (currentDesign) {
+        // Position is already saved in the design object via applyTransform
+    }
+
+    state.currentSide = side;
+
+    // Update toggle button active states
+    DOM.toggleFront.classList.toggle('is-active', side === 'front');
+    DOM.toggleBack.classList.toggle('is-active', side === 'back');
+
+    // Swap t-shirt base image
+    const newSrc = getTshirtSrc(state.currentTshirtColor, side);
+    DOM.tshirtImg.style.opacity = 0.5;
+    setTimeout(() => {
+        DOM.tshirtImg.src = newSrc;
+        DOM.tshirtImg.style.opacity = 1;
+    }, 150);
+
+    // Swap design overlay
+    const newDesign = getCurrentDesign();
+    if (newDesign) {
+        loadDesignToCanvas(newDesign);
+    } else {
+        // Hide design overlay for this side
+        DOM.generatedImage.onerror = null;
+        DOM.generatedImage.src = '';
+        DOM.designWrapper.classList.add('hidden');
+        DOM.designWrapper.style.transform = 'translate(-50%, -50%)';
+    }
+
+    updateUI();
 }
 
 // --- Authentication Functions ---
@@ -284,7 +380,8 @@ function handleLogout() {
     localStorage.removeItem('luxe_token');
     state.token = null;
     state.user = null;
-    state.currentDesign = null;
+    state.frontDesign = null;
+    state.backDesign = null;
     state.history = [];
     window.location.reload();
 }
@@ -345,7 +442,8 @@ function renderOrders(orders) {
 
         const statusLabel = order.status.replace('_', ' ').toUpperCase();
         
-        let displayImageUrl = order.finalized_image_url || order.processed_image_url;
+        // Use combined mockup if available, else fall back to finalized/processed
+        let displayImageUrl = order.combined_mockup_url || order.finalized_image_url || order.processed_image_url;
         if (displayImageUrl && !displayImageUrl.startsWith('http')) {
             displayImageUrl = displayImageUrl.startsWith('/') ? displayImageUrl : `/${displayImageUrl}`;
         }
@@ -408,9 +506,9 @@ function updateUI() {
             DOM.generateBtn.querySelector('.btn-primary-text').textContent = 'Limit Reached';
         }
 
-        // Show BUY NOW button ONLY if there's a current design
+        // Show BUY NOW button if there's any design (front or back)
         if (DOM.buyNowBtn) {
-            if (state.currentDesign) {
+            if (hasAnyDesign()) {
                 DOM.buyNowBtn.classList.remove('hidden');
                 DOM.buyNowBtn.disabled = false;
             } else {
@@ -423,10 +521,6 @@ function updateUI() {
 
 // --- Professional Drag & Resize Engine (Interact.js) ---
 function initInteractJS() {
-    if (!state.currentDesign) {
-        state.currentDesign = { x: 0, y: 0, scale: 1 };
-    }
-
     interact('#generated-image-container')
         .draggable({
             inertia: true,
@@ -455,7 +549,8 @@ function initResize(e) {
     e.preventDefault();
     e.stopPropagation();
     startY = e.clientY || (e.touches && e.touches[0].clientY);
-    startScale = state.currentDesign.scale || 1;
+    const currentDesign = getCurrentDesign();
+    startScale = (currentDesign && currentDesign.scale) || 1;
 
     window.addEventListener('mousemove', resizeMoveListener);
     window.addEventListener('touchmove', resizeMoveListener, { passive: false });
@@ -465,7 +560,8 @@ function initResize(e) {
 
 function resizeMoveListener(e) {
     e.preventDefault();
-    if (!state.currentDesign) return;
+    const currentDesign = getCurrentDesign();
+    if (!currentDesign) return;
 
     const currentY = e.clientY || (e.touches && e.touches[0].clientY);
     const deltaY = startY - currentY;
@@ -473,7 +569,7 @@ function resizeMoveListener(e) {
 
     newScale = Math.max(0.3, Math.min(newScale, 2.5));
 
-    applyTransform(state.currentDesign.x, state.currentDesign.y, newScale);
+    applyTransform(currentDesign.x, currentDesign.y, newScale);
 }
 
 function stopResize() {
@@ -484,22 +580,23 @@ function stopResize() {
 }
 
 function dragMoveListener(event) {
-    if (!state.currentDesign) return;
+    const currentDesign = getCurrentDesign();
+    if (!currentDesign) return;
 
-    const scale = state.currentDesign.scale || 1;
-    state.currentDesign.x += (event.dx / scale);
-    state.currentDesign.y += (event.dy / scale);
+    const scale = currentDesign.scale || 1;
+    currentDesign.x += (event.dx / scale);
+    currentDesign.y += (event.dy / scale);
 
-    applyTransform(state.currentDesign.x, state.currentDesign.y, scale);
+    applyTransform(currentDesign.x, currentDesign.y, scale);
 }
 
 function applyTransform(x, y, scale) {
-    if (state.currentDesign) {
-        state.currentDesign.x = x;
-        state.currentDesign.y = y;
-        state.currentDesign.scale = scale;
+    const currentDesign = getCurrentDesign();
+    if (currentDesign) {
+        currentDesign.x = x;
+        currentDesign.y = y;
+        currentDesign.scale = scale;
     }
-    // Prepend the CSS translate(-50%, -50%) to preserve the absolute center positioning
     DOM.designWrapper.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
 }
 
@@ -535,9 +632,9 @@ async function generateDesign() {
 
         const imageUrl = data.imageUrl;
 
-        console.log('🎨 Generated design received:', imageUrl);
+        console.log(`🎨 Generated ${state.currentSide} design received:`, imageUrl);
 
-        // Preload image with timeout and proper error handling
+        // Preload image with timeout
         await new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -545,7 +642,7 @@ async function generateDesign() {
             const timeout = setTimeout(() => {
                 console.error('Image load timeout:', imageUrl);
                 reject(new Error('Image load timed out. Check your internet connection.'));
-            }, 15000); // 15 second timeout
+            }, 15000);
             
             img.onload = () => {
                 clearTimeout(timeout);
@@ -556,8 +653,6 @@ async function generateDesign() {
             img.onerror = (e) => {
                 clearTimeout(timeout);
                 console.error('❌ Image load failed:', imageUrl);
-                console.error('Error event:', e);
-                console.error('Check if the URL is accessible by opening it directly in browser');
                 reject(new Error('Failed to load generated image. The server may be unreachable.'));
             };
             
@@ -570,7 +665,6 @@ async function generateDesign() {
     } catch (error) {
         console.error('Generation failed:', error);
         
-        // Handle image load errors specifically
         if (error.message === 'Failed to load generated image') {
             alert('Design was generated but the image could not be loaded. Please check your internet connection and try again.');
         } else {
@@ -619,11 +713,14 @@ function handleNewDesign(url, promptText, data) {
     }
 
     renderHistory();
+    // Load the new design onto the current side
     loadDesignToCanvas(newDesign);
 }
 
 function loadDesignToCanvas(design) {
-    state.currentDesign = design;
+    // Set the design on the current side
+    setCurrentDesign(design);
+    
     DOM.generatedImage.src = design.url;
     DOM.generatedImage.onerror = () => {
         console.error('Failed to load design on canvas:', design.url);
@@ -641,25 +738,17 @@ function loadDesignToCanvas(design) {
 }
 
 function removeDesign() {
-    // Clear the current design from state
-    state.currentDesign = null;
+    // Clear only the current side's design
+    setCurrentDesign(null);
     
-    // Remove the onerror handler to prevent false errors
+    // Remove the onerror handler
     DOM.generatedImage.onerror = null;
-    
-    // Clear the image source
     DOM.generatedImage.src = '';
-    
-    // Hide the design container
     DOM.designWrapper.classList.add('hidden');
-    
-    // Hide the BUY NOW button
-    if (DOM.buyNowBtn) {
-        DOM.buyNowBtn.classList.add('hidden');
-    }
-    
-    // Reset transform
     DOM.designWrapper.style.transform = 'translate(-50%, -50%)';
+    
+    // Update BUY NOW visibility based on whether any design remains
+    updateUI();
 }
 
 function restoreFromHistory(id) {
@@ -673,17 +762,15 @@ function restoreFromHistory(id) {
             y: 0,
             scale: 1
         };
+        // Loads onto the currently active side
         loadDesignToCanvas(normalizedDesign);
-        // Close modal after selection
         DOM.archivesModal.classList.add('hidden');
     }
 }
 
 function renderHistory() {
-    // Clear grid
     if (DOM.archivesGrid) DOM.archivesGrid.innerHTML = '';
 
-    // Handle Empty State
     if (state.history.length === 0) {
         if (DOM.emptyArchives) DOM.emptyArchives.classList.remove('hidden');
         if (DOM.archivesGrid) DOM.archivesGrid.classList.add('hidden');
@@ -727,52 +814,53 @@ async function loadHistory() {
 }
 
 // --- BUY NOW / Checkout Logic ---
-async function handleFinalize() {
-    if (!state.currentDesign) return null;
+
+// Bake a single side's composite (t-shirt + design)
+async function bakeSideComposite(side) {
+    const design = side === 'front' ? state.frontDesign : state.backDesign;
+    if (!design) return null;
 
     try {
         const canvas = document.createElement('canvas');
-        // Production dimensions for the printer
         const CANVAS_WIDTH = 2000;
         const CANVAS_HEIGHT = 2400;
         canvas.width = CANVAS_WIDTH;
         canvas.height = CANVAS_HEIGHT;
         const ctx = canvas.getContext('2d');
 
+        // Load t-shirt image for this side
+        const tshirtSrc = getTshirtSrc(state.currentTshirtColor, side);
         const tshirtImg = new Image();
-        tshirtImg.src = DOM.tshirtImg.src;
-        
+        tshirtImg.src = tshirtSrc;
+
         const designImg = new Image();
         designImg.crossOrigin = "anonymous";
-        designImg.src = state.currentDesign.url;
+        designImg.src = design.url;
 
         await Promise.all([
             new Promise(res => tshirtImg.onload = res),
             new Promise(res => designImg.onload = res)
         ]);
 
-        // 1. Draw the T-shirt to fill the entire production canvas
+        // Draw t-shirt
         ctx.drawImage(tshirtImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // 2. Calculate the exact UI scale factor
+        // Map design position
         const uiWidth = DOM.tshirtImg.clientWidth;
         const uiHeight = DOM.tshirtImg.clientHeight;
         const scaleX = CANVAS_WIDTH / uiWidth;
         const scaleY = CANVAS_HEIGHT / uiHeight;
 
-        // 3. Map the design size and position using these factors
-        const safeScale = state.currentDesign.scale || 1;
+        const safeScale = design.scale || 1;
         const finalWidth = (DOM.generatedImage.clientWidth * safeScale) * scaleX;
         const finalHeight = (DOM.generatedImage.clientHeight * safeScale) * scaleY;
 
-        // Calculate center based on the relative offset from the UI
-        const offsetX = state.currentDesign.x || 0;
-        const offsetY = state.currentDesign.y || 0;
+        const offsetX = design.x || 0;
+        const offsetY = design.y || 0;
         
         const finalX = (CANVAS_WIDTH / 2) + (offsetX * scaleX);
         const finalY = (CANVAS_HEIGHT / 2) + (offsetY * scaleY);
 
-        // 4. Draw the design perfectly mapped to canvas coordinates
         ctx.drawImage(
             designImg, 
             finalX - (finalWidth / 2), 
@@ -783,16 +871,63 @@ async function handleFinalize() {
 
         return canvas.toDataURL('image/jpeg', 0.95);
     } catch (error) {
-        console.error("Baking failed:", error);
+        console.error(`Baking ${side} failed:`, error);
         return null;
     }
 }
 
-async function finalizeDesignOnServer() {
-    try {
-        const finalImageBase64 = await handleFinalize();
+// Create a combined mockup with front and back side by side
+async function createCombinedMockup() {
+    const frontImage = await bakeSideComposite('front');
+    const backImage = await bakeSideComposite('back');
 
-        const response = await fetch(`${API_BASE}/designs/${state.currentDesign.id}/finalize`, {
+    // If only one side has a design, use that as the mockup
+    if (!frontImage && !backImage) return null;
+    if (!frontImage) return backImage;
+    if (!backImage) return frontImage;
+
+    // Create side-by-side composite
+    try {
+        const canvas = document.createElement('canvas');
+        const SIDE_WIDTH = 1000;
+        const SIDE_HEIGHT = 1200;
+        canvas.width = SIDE_WIDTH * 2 + 40; // 40px gap
+        canvas.height = SIDE_HEIGHT;
+        const ctx = canvas.getContext('2d');
+
+        // White background
+        ctx.fillStyle = '#f5f5f2';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Load front composite
+        const frontImg = new Image();
+        frontImg.src = frontImage;
+        await new Promise(res => frontImg.onload = res);
+        ctx.drawImage(frontImg, 0, 0, SIDE_WIDTH, SIDE_HEIGHT);
+
+        // Load back composite
+        const backImg = new Image();
+        backImg.src = backImage;
+        await new Promise(res => backImg.onload = res);
+        ctx.drawImage(backImg, SIDE_WIDTH + 40, 0, SIDE_WIDTH, SIDE_HEIGHT);
+
+        // Labels
+        ctx.fillStyle = '#111827';
+        ctx.font = 'bold 28px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('FRONT', SIDE_WIDTH / 2, SIDE_HEIGHT - 20);
+        ctx.fillText('BACK', SIDE_WIDTH + 40 + SIDE_WIDTH / 2, SIDE_HEIGHT - 20);
+
+        return canvas.toDataURL('image/jpeg', 0.90);
+    } catch (error) {
+        console.error('Combined mockup creation failed:', error);
+        return frontImage || backImage;
+    }
+}
+
+async function finalizeDesignOnServer(designId, finalImageBase64) {
+    try {
+        const response = await fetch(`${API_BASE}/designs/${designId}/finalize`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -807,9 +942,6 @@ async function finalizeDesignOnServer() {
             throw new Error(data.error || 'Failed to finalize design');
         }
 
-        state.currentDesign.finalizedImageUrl = data.finalizedImageUrl;
-        state.currentDesign.is_finalized = true;
-
         return data.finalizedImageUrl;
     } catch (error) {
         console.error('Finalize error:', error);
@@ -818,7 +950,7 @@ async function finalizeDesignOnServer() {
 }
 
 async function handleBuyNow() {
-    if (!state.currentDesign) {
+    if (!hasAnyDesign()) {
         alert('Please generate or select a design first');
         return;
     }
@@ -836,12 +968,17 @@ function showSizeModal() {
     modal.id = 'size-modal';
     modal.className = 'modal-root';
     
-    // Inline styling added purely to match the UI aesthetic
+    // Show which sides have designs
+    const sideInfo = [];
+    if (state.frontDesign) sideInfo.push('Front');
+    if (state.backDesign) sideInfo.push('Back');
+    const sidesText = sideInfo.join(' + ') + ' design' + (sideInfo.length > 1 ? 's' : '');
+
     modal.innerHTML = `
         <div class="modal-backdrop"></div>
         <div class="modal-panel" style="max-width: 380px;">
             <h3 class="serif modal-title" style="margin-bottom: 8px;">Select Size</h3>
-            <p class="modal-subcopy" style="margin-bottom: 24px;">Choose your T-shirt size</p>
+            <p class="modal-subcopy" style="margin-bottom: 24px;">Choose your T-shirt size · <strong>${sidesText}</strong></p>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px;">
                 <button class="size-btn btn-secondary" data-size="S" style="margin-top:0;">S</button>
                 <button class="size-btn btn-secondary" data-size="M" style="margin-top:0;">M</button>
@@ -888,9 +1025,47 @@ function showSizeModal() {
         proceedBtn.textContent = 'Finalizing...';
         
         try {
-            await finalizeDesignOnServer();
+            // Finalize front design if it exists
+            if (state.frontDesign) {
+                const frontBaked = await bakeSideComposite('front');
+                if (frontBaked) {
+                    await finalizeDesignOnServer(state.frontDesign.id, frontBaked);
+                    state.frontDesign.is_finalized = true;
+                }
+            }
+
+            // Finalize back design if it exists
+            if (state.backDesign) {
+                const backBaked = await bakeSideComposite('back');
+                if (backBaked) {
+                    await finalizeDesignOnServer(state.backDesign.id, backBaked);
+                    state.backDesign.is_finalized = true;
+                }
+            }
+
+            // Create combined mockup
+            proceedBtn.textContent = 'Creating mockup...';
+            const combinedMockupBase64 = await createCombinedMockup();
+            
+            // Upload combined mockup to R2
+            let combinedMockupUrl = null;
+            if (combinedMockupBase64) {
+                const uploadResponse = await fetch(`${API_BASE}/designs/upload-mockup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${state.token}`
+                    },
+                    body: JSON.stringify({ mockupImage: combinedMockupBase64 })
+                });
+                const uploadData = await uploadResponse.json();
+                if (uploadResponse.ok) {
+                    combinedMockupUrl = uploadData.mockupUrl;
+                }
+            }
+
             modal.remove();
-            initiateCheckout(selectedSize);
+            initiateCheckout(selectedSize, combinedMockupUrl);
         } catch (error) {
             alert('Failed to finalize design: ' + error.message);
             proceedBtn.disabled = false;
@@ -899,7 +1074,7 @@ function showSizeModal() {
     });
 }
 
-async function initiateCheckout(tshirtSize) {
+async function initiateCheckout(tshirtSize, combinedMockupUrl) {
     try {
         const orderResponse = await fetch(`${API_BASE}/orders/buy-now`, {
             method: 'POST',
@@ -908,9 +1083,11 @@ async function initiateCheckout(tshirtSize) {
                 'Authorization': `Bearer ${state.token}`
             },
             body: JSON.stringify({
-                designId: state.currentDesign.id,
+                designIdFront: state.frontDesign ? state.frontDesign.id : null,
+                designIdBack: state.backDesign ? state.backDesign.id : null,
                 tshirtSize: tshirtSize,
-                quantity: 1
+                quantity: 1,
+                combinedMockupUrl: combinedMockupUrl
             })
         });
 

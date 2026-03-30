@@ -408,6 +408,38 @@ h3,
   align-items: center;
 }
 
+/* Front/Back Toggle */
+.side-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #e5e7eb;
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 10;
+}
+
+.side-toggle-btn {
+  border: none;
+  background: transparent;
+  padding: 7px 22px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+  letter-spacing: 0.04em;
+}
+
+.side-toggle-btn.is-active {
+  background: #111827;
+  color: #f9fafb;
+  box-shadow: 0 2px 8px rgba(17, 24, 39, 0.2);
+}
+
 .tshirt-shell {
   position: relative;
   width: 100%;
@@ -417,7 +449,7 @@ h3,
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -65px;
+  margin-top: -10px;
 }
 
 .tshirt-base {

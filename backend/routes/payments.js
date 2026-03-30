@@ -52,31 +52,50 @@ router.post('/verify', authMiddleware, async (req, res) => {
             order_found.amount_in_paise
         );
 
-        // ✨ TRIGGER 4K UPSCALING
+        // ✨ TRIGGER 4K UPSCALING for front design
         if (order_found.processed_image_url) {
-            console.log(`🚀 Upscaling design for Order ${order_found.id} to 4K...`);
+            console.log(`🚀 Upscaling FRONT design for Order ${order_found.id} to 4K...`);
             try {
-                // 1. Upscale on Cloudinary
                 const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
                     order_found.processed_image_url, 
-                    order_found.id
+                    `${order_found.id}-front`
                 );
-                console.log(`✅ 4K Design generated on Cloudinary`);
+                console.log(`✅ 4K Front Design generated on Cloudinary`);
 
-                // 2. Download from Cloudinary and upload back to R2 (Replacing the original)
-                // Extract the key from the public R2 URL
                 const r2PublicUrlBase = process.env.CLOUDFLARE_R2_PUBLIC_URL;
-                const targetKey = order_found.processed_image_url.replace(`${r2PublicUrlBase}/`, '');
+                const targetKey = `finals/${order_found.id}-front-4k-print.png`;
                 
                 const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
-                console.log(`✅ 4K Design replaced in R2 at: ${highResR2Url}`);
+                console.log(`✅ 4K Front Design stored in R2 at: ${highResR2Url}`);
 
-                // 3. Update the fulfillment queue with the high-res URL
-                await db.updateFulfillmentRawDesignUrl(order_found.id, highResR2Url);
-                console.log(`✅ DB updated with high-res design for fulfillment`);
+                await db.updateFulfillmentRawDesignUrl(order_found.id, highResR2Url, 'front');
+                console.log(`✅ DB updated with high-res front design for fulfillment`);
 
             } catch (err) {
-                console.error("High-res upscaling/storage failed, but proceeding with order:", err.message);
+                console.error("Front high-res upscaling failed, proceeding with order:", err.message);
+            }
+        }
+
+        // ✨ TRIGGER 4K UPSCALING for back design
+        if (order_found.back_processed_image_url) {
+            console.log(`🚀 Upscaling BACK design for Order ${order_found.id} to 4K...`);
+            try {
+                const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
+                    order_found.back_processed_image_url, 
+                    `${order_found.id}-back`
+                );
+                console.log(`✅ 4K Back Design generated on Cloudinary`);
+
+                const targetKey = `finals/${order_found.id}-back-4k-print.png`;
+                
+                const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
+                console.log(`✅ 4K Back Design stored in R2 at: ${highResR2Url}`);
+
+                await db.updateFulfillmentRawDesignUrl(order_found.id, highResR2Url, 'back');
+                console.log(`✅ DB updated with high-res back design for fulfillment`);
+
+            } catch (err) {
+                console.error("Back high-res upscaling failed, proceeding with order:", err.message);
             }
         }
 
@@ -125,30 +144,49 @@ router.post('/webhook', async (req, res) => {
 
                     await db.updateOrderStatus(order.id, 'paid');
 
-                    // ✨ TRIGGER 4K UPSCALING for Webhook
+                    // ✨ TRIGGER 4K UPSCALING for Webhook - FRONT
                     if (order.processed_image_url) {
                         try {
-                            console.log(`🚀 Webhook: Upscaling design for Order ${order.id} to 4K...`);
+                            console.log(`🚀 Webhook: Upscaling FRONT design for Order ${order.id} to 4K...`);
                             
-                            // 1. Upscale on Cloudinary
                             const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
                                 order.processed_image_url, 
-                                order.id
+                                `${order.id}-front`
                             );
 
-                            // 2. Download and upload to R2 (Replacing original)
-                            const r2PublicUrlBase = process.env.CLOUDFLARE_R2_PUBLIC_URL;
-                            const targetKey = order.processed_image_url.replace(`${r2PublicUrlBase}/`, '');
+                            const targetKey = `finals/${order.id}-front-4k-print.png`;
                             
                             const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
-                            console.log(`✅ Webhook: 4K Design replaced in R2 at: ${highResR2Url}`);
+                            console.log(`✅ Webhook: 4K Front Design stored in R2 at: ${highResR2Url}`);
 
-                            // 3. Update DB
-                            await db.updateFulfillmentRawDesignUrl(order.id, highResR2Url);
-                            console.log(`✅ Webhook: DB updated with high-res design`);
+                            await db.updateFulfillmentRawDesignUrl(order.id, highResR2Url, 'front');
+                            console.log(`✅ Webhook: DB updated with high-res front design`);
 
                         } catch (uploadError) {
-                            console.error(`⚠️ Webhook Non-fatal error: Failed to upscale design to 4K for order ${order.id}:`, uploadError);
+                            console.error(`⚠️ Webhook: Failed to upscale front design for order ${order.id}:`, uploadError);
+                        }
+                    }
+
+                    // ✨ TRIGGER 4K UPSCALING for Webhook - BACK
+                    if (order.back_processed_image_url) {
+                        try {
+                            console.log(`🚀 Webhook: Upscaling BACK design for Order ${order.id} to 4K...`);
+                            
+                            const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
+                                order.back_processed_image_url, 
+                                `${order.id}-back`
+                            );
+
+                            const targetKey = `finals/${order.id}-back-4k-print.png`;
+                            
+                            const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
+                            console.log(`✅ Webhook: 4K Back Design stored in R2 at: ${highResR2Url}`);
+
+                            await db.updateFulfillmentRawDesignUrl(order.id, highResR2Url, 'back');
+                            console.log(`✅ Webhook: DB updated with high-res back design`);
+
+                        } catch (uploadError) {
+                            console.error(`⚠️ Webhook: Failed to upscale back design for order ${order.id}:`, uploadError);
                         }
                     }
 

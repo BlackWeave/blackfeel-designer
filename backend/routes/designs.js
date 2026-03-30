@@ -149,4 +149,32 @@ router.post('/:designId/finalize', authMiddleware, async (req, res) => {
     }
 });
 
+// Upload combined mockup (front+back side-by-side)
+router.post('/upload-mockup', authMiddleware, async (req, res) => {
+    try {
+        const { mockupImage } = req.body;
+
+        if (!mockupImage) {
+            return res.status(400).json({ error: 'Mockup image is required' });
+        }
+
+        const base64Data = mockupImage.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        const fileName = `${Date.now()}-combined-mockup.webp`;
+
+        console.log(`📸 Uploading combined mockup: ${fileName}`);
+
+        const mockupUrl = await imageStorage.uploadBuffer(buffer, fileName, 'mockups');
+
+        res.json({
+            success: true,
+            mockupUrl: mockupUrl
+        });
+    } catch (error) {
+        console.error('Mockup upload error:', error);
+        res.status(500).json({ error: 'Failed to upload mockup: ' + error.message });
+    }
+});
+
 export default router;
