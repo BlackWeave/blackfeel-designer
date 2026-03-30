@@ -7,8 +7,8 @@ const CURATED_INSPIRATION = [
         url: "https://cdn.blackfeel.co.in/designs/12ee2c0b-175f-4422-972f-87c9a3a255c0.webp"
     },
     {
-        prompt: "Retro synthwave sunset grid, neon pink & blue",
-        url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400"
+        prompt: "Led Zeppelin",
+        url: "https://cdn.blackfeel.co.in/designs/f92105f7-4d94-48a1-9888-f9357182a4bb.webp"
     },
     {
         prompt: "Botanical monstera with gold geometry",
