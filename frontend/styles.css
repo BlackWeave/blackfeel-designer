@@ -866,3 +866,362 @@ h3,
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ========================================
+   Upgraded Inspiration Modal UI Styles
+   ======================================== */
+
+/* Material Symbols Icon Base */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1;
+}
+
+/* Inspiration Modal Root - Override for full modal */
+#inspiration-modal .modal-backdrop {
+  background: rgba(229, 231, 235, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+/* Inspiration Modal Panel - Large horizontal layout */
+.inspiration-modal-panel {
+  position: relative;
+  max-width: 1056px;
+  width: 100%;
+  height: auto;
+  max-height: 870px;
+  margin: 0;
+  padding: 0;
+  border-radius: 2rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 30px 60px rgba(48, 51, 46, 0.1);
+}
+
+/* Close Button - Top right inside modal */
+.inspiration-close-btn {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  z-index: 80;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: #5d605a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.inspiration-close-btn:hover {
+  background-color: rgba(226, 227, 219, 0.3);
+  transform: scale(0.95);
+}
+
+.inspiration-close-btn:active {
+  transform: scale(0.9);
+}
+
+/* Navigation Arrows - Floating outside modal */
+.inspiration-nav-btn {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  color: #805533;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  z-index: 70;
+}
+
+.inspiration-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.inspiration-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.inspiration-nav-left {
+  left: 2rem;
+}
+
+.inspiration-nav-right {
+  right: 2rem;
+}
+
+.inspiration-nav-btn .material-symbols-outlined {
+  font-size: 1.75rem;
+}
+
+/* Image Container - Left side (60%) */
+.inspiration-image-container {
+  width: 60%;
+  height: 409px;
+  padding: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inspiration-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  background: #eeeee8;
+}
+
+.inspiration-main-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s ease;
+}
+
+.inspiration-image-wrapper:hover .inspiration-main-image {
+  transform: scale(1.05);
+}
+
+.inspiration-image-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.2), transparent);
+  pointer-events: none;
+}
+
+/* Content Area - Right side (40%) */
+.inspiration-content-area {
+  width: 40%;
+  padding: 4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* Inspiration Header */
+.inspiration-header {
+  margin-bottom: 2.5rem;
+}
+
+.inspiration-title {
+  font-family: 'Playfair Display', 'Times New Roman', serif;
+  font-size: 2.5rem;
+  color: #30332e;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.inspiration-subtitle {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.75rem;
+  color: #5d605a;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+/* Quote Section */
+.inspiration-quote-wrapper {
+  position: relative;
+  padding: 2rem 0.5rem;
+  margin-bottom: 3rem;
+  border-left: 2px solid rgba(128, 85, 51, 0.2);
+}
+
+.inspiration-quote {
+  font-family: 'Playfair Display', 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 1.75rem;
+  color: #805533;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* CTA Section */
+.inspiration-cta-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+/* Use Prompt Button */
+.inspiration-use-btn {
+  width: 100%;
+  padding: 1.25rem 2rem;
+  border: none;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #805533, #724929);
+  color: #fff6f2;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 20px 40px rgba(128, 85, 51, 0.25);
+}
+
+.inspiration-use-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 24px 48px rgba(128, 85, 51, 0.3);
+}
+
+.inspiration-use-btn:active {
+  transform: scale(0.98);
+}
+
+.inspiration-use-btn .material-symbols-outlined {
+  font-size: 1.25rem;
+}
+
+/* Pagination Dots */
+.inspiration-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: flex-start;
+}
+
+.inspiration-pagination-dot {
+  width: 2rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  border: none;
+  background: #e2e3db;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.inspiration-pagination-dot.active {
+  background: #805533;
+}
+
+.inspiration-pagination-dot:hover:not(.active) {
+  background: #b1b3ab;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .inspiration-modal-panel {
+    flex-direction: column;
+    max-height: none;
+    height: auto;
+  }
+
+  .inspiration-image-container {
+    width: 100%;
+    height: 400px;
+    padding: 1.5rem;
+  }
+
+  .inspiration-content-area {
+    width: 100%;
+    padding: 2rem 1.5rem 2.5rem;
+  }
+
+  .inspiration-title {
+    font-size: 2rem;
+  }
+
+  .inspiration-quote {
+    font-size: 1.5rem;
+  }
+
+  .inspiration-nav-btn {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .inspiration-nav-left {
+    left: 1rem;
+  }
+
+  .inspiration-nav-right {
+    right: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .inspiration-modal-panel {
+    border-radius: 1.25rem;
+    margin: 1rem;
+    max-width: calc(100% - 2rem);
+  }
+
+  .inspiration-image-container {
+    height: 320px;
+    padding: 1rem;
+  }
+
+  .inspiration-content-area {
+    padding: 1.5rem 1rem 2rem;
+  }
+
+  .inspiration-title {
+    font-size: 1.75rem;
+  }
+
+  .inspiration-quote {
+    font-size: 1.25rem;
+  }
+
+  .inspiration-close-btn {
+    top: 1rem;
+    right: 1rem;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .inspiration-nav-btn {
+    display: none;
+  }
+
+  .inspiration-use-btn {
+    padding: 1rem 1.5rem;
+    font-size: 0.9rem;
+  }
+}

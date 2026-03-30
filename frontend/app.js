@@ -2,22 +2,22 @@
 const API_BASE = '/api';
 
 const CURATED_INSPIRATION = [
-  {
-    prompt: "Minimalist sleepy cat next to coffee, warm tones",
-    url: "https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=400"
-  },
-  {
-    prompt: "Retro synthwave sunset grid, neon pink & blue",
-    url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400"
-  },
-  {
-    prompt: "Botanical monstera with gold geometry",
-    url: "https://images.unsplash.com/photo-1545241047-6083a36a4d00?w=400"
-  },
-  {
-    prompt: "Vintage mountain poster twilight pastel",
-    url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400"
-  }
+    {
+        prompt: "Minimalist sleepy cat next to coffee, warm tones",
+        url: "https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=400"
+    },
+    {
+        prompt: "Retro synthwave sunset grid, neon pink & blue",
+        url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400"
+    },
+    {
+        prompt: "Botanical monstera with gold geometry",
+        url: "https://images.unsplash.com/photo-1545241047-6083a36a4d00?w=400"
+    },
+    {
+        prompt: "Vintage mountain poster twilight pastel",
+        url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400"
+    }
 ];
 
 // --- T-shirt image maps ---
@@ -109,7 +109,12 @@ const DOM = {
     inspirationBtn: document.getElementById('inspiration-btn'),
     inspirationModal: document.getElementById('inspiration-modal'),
     closeInspirationBtn: document.getElementById('close-inspiration-btn'),
-    inspirationGrid: document.getElementById('inspiration-grid')
+    inspirationPrevBtn: document.getElementById('inspiration-prev-btn'),
+    inspirationNextBtn: document.getElementById('inspiration-next-btn'),
+    inspirationMainImage: document.getElementById('inspiration-main-image'),
+    inspirationQuote: document.getElementById('inspiration-quote'),
+    usePromptBtn: document.getElementById('use-prompt-btn'),
+    inspirationPagination: document.getElementById('inspiration-pagination')
 };
 
 // --- Helper: get current design for active side ---
@@ -207,6 +212,13 @@ function setupEventListeners() {
         if (DOM.inspirationModal && e.target === DOM.inspirationModal) {
             DOM.inspirationModal.classList.add('hidden');
         }
+        // Also close when clicking on the backdrop inside the inspiration modal
+        if (DOM.inspirationModal && !DOM.inspirationModal.classList.contains('hidden')) {
+            const backdrop = DOM.inspirationModal.querySelector('.modal-backdrop');
+            if (e.target === backdrop) {
+                DOM.inspirationModal.classList.add('hidden');
+            }
+        }
     });
 
     // Inspiration Gallery
@@ -224,6 +236,43 @@ function setupEventListeners() {
             if (DOM.inspirationModal) DOM.inspirationModal.classList.add('hidden');
         });
     }
+
+    // Navigation buttons for carousel
+    if (DOM.inspirationPrevBtn) {
+        DOM.inspirationPrevBtn.addEventListener('click', () => {
+            navigateInspiration(-1);
+        });
+    }
+
+    if (DOM.inspirationNextBtn) {
+        DOM.inspirationNextBtn.addEventListener('click', () => {
+            navigateInspiration(1);
+        });
+    }
+
+    // Use prompt button
+    if (DOM.usePromptBtn) {
+        DOM.usePromptBtn.addEventListener('click', () => {
+            if (DOM.currentInspirationItem) {
+                DOM.promptInput.value = DOM.currentInspirationItem.prompt;
+                DOM.inspirationModal.classList.add('hidden');
+                DOM.promptInput.focus();
+            }
+        });
+    }
+
+    // Keyboard navigation for inspiration modal
+    document.addEventListener('keydown', (e) => {
+        if (DOM.inspirationModal && !DOM.inspirationModal.classList.contains('hidden')) {
+            if (e.key === 'Escape') {
+                DOM.inspirationModal.classList.add('hidden');
+            } else if (e.key === 'ArrowLeft') {
+                navigateInspiration(-1);
+            } else if (e.key === 'ArrowRight') {
+                navigateInspiration(1);
+            }
+        }
+    });
 
     // Color buttons
     DOM.colorBtns.forEach(btn => {
@@ -269,32 +318,75 @@ function setupEventListeners() {
 }
 
 // --- Inspiration Gallery Function ---
+let currentInspirationIndex = 0;
+
 function renderInspiration() {
-    if (!DOM.inspirationGrid) return;
-    DOM.inspirationGrid.innerHTML = '';
+    if (!DOM.inspirationMainImage || !DOM.inspirationQuote || !DOM.inspirationPagination) return;
 
-    CURATED_INSPIRATION.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'inspiration-card';
+    // Reset index to first item when opening modal
+    currentInspirationIndex = 0;
+    DOM.currentInspirationItem = CURATED_INSPIRATION[0];
 
-        const img = document.createElement('img');
-        img.src = item.url;
+    updateInspirationDisplay();
+}
 
-        const text = document.createElement('div');
-        text.className = 'inspiration-card-prompt';
-        text.textContent = `"${item.prompt}"`;
+function updateInspirationDisplay() {
+    const item = CURATED_INSPIRATION[currentInspirationIndex];
+    DOM.currentInspirationItem = item;
 
-        card.appendChild(img);
-        card.appendChild(text);
+    // Update main image
+    DOM.inspirationMainImage.src = item.url;
+    DOM.inspirationMainImage.alt = item.prompt;
 
-        card.addEventListener('click', () => {
-            DOM.promptInput.value = item.prompt;
-            DOM.inspirationModal.classList.add('hidden');
-            DOM.promptInput.focus();
+    // Update quote
+    DOM.inspirationQuote.textContent = `"${item.prompt}"`;
+
+    // Update pagination dots
+    renderPagination();
+
+    // Update navigation buttons state
+    updateNavigationButtons();
+}
+
+function renderPagination() {
+    if (!DOM.inspirationPagination) return;
+
+    DOM.inspirationPagination.innerHTML = '';
+
+    CURATED_INSPIRATION.forEach((_, index) => {
+        const dot = document.createElement('button');
+        dot.className = `inspiration-pagination-dot${index === currentInspirationIndex ? ' active' : ''}`;
+        dot.addEventListener('click', () => {
+            currentInspirationIndex = index;
+            updateInspirationDisplay();
         });
-
-        DOM.inspirationGrid.appendChild(card);
+        DOM.inspirationPagination.appendChild(dot);
     });
+}
+
+function updateNavigationButtons() {
+    // Disable prev button if at first item
+    if (DOM.inspirationPrevBtn) {
+        DOM.inspirationPrevBtn.style.opacity = currentInspirationIndex === 0 ? '0.5' : '1';
+        DOM.inspirationPrevBtn.style.cursor = currentInspirationIndex === 0 ? 'not-allowed' : 'pointer';
+    }
+
+    // Disable next button if at last item
+    if (DOM.inspirationNextBtn) {
+        const isLast = currentInspirationIndex === CURATED_INSPIRATION.length - 1;
+        DOM.inspirationNextBtn.style.opacity = isLast ? '0.5' : '1';
+        DOM.inspirationNextBtn.style.cursor = isLast ? 'not-allowed' : 'pointer';
+    }
+}
+
+function navigateInspiration(direction) {
+    const newIndex = currentInspirationIndex + direction;
+
+    // Check bounds
+    if (newIndex < 0 || newIndex >= CURATED_INSPIRATION.length) return;
+
+    currentInspirationIndex = newIndex;
+    updateInspirationDisplay();
 }
 
 // --- Side Toggle Logic ---

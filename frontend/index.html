@@ -11,6 +11,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap"
     rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
 
   <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 
@@ -219,16 +221,51 @@
   </div>
 
   <div id="inspiration-modal" class="modal-root hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-panel" style="max-width: 680px;">
-      <div class="modal-header">
-        <h2 class="serif modal-title">Inspiration Gallery</h2>
-        <button id="close-inspiration-btn" class="icon-button">✕</button>
+    <!-- Navigation Arrows (Floating) -->
+    <button id="inspiration-prev-btn" class="inspiration-nav-btn inspiration-nav-left">
+      <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+    <button id="inspiration-next-btn" class="inspiration-nav-btn inspiration-nav-right">
+      <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+
+    <!-- Main Modal Content -->
+    <div class="modal-panel inspiration-modal-panel">
+      <button id="close-inspiration-btn" class="inspiration-close-btn">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+
+      <!-- Image Container -->
+      <div class="inspiration-image-container">
+        <div class="inspiration-image-wrapper">
+          <img id="inspiration-main-image" class="inspiration-main-image" src="" alt="Inspiration" />
+          <div class="inspiration-image-gradient"></div>
+        </div>
       </div>
-      <p class="modal-subcopy">
-        Tap any design below to use its prompt.
-      </p>
-      <div id="inspiration-grid" class="inspiration-grid"></div>
+
+      <!-- Content Area -->
+      <div class="inspiration-content-area">
+        <div class="inspiration-header">
+          <h2 class="inspiration-title">Inspiration Gallery</h2>
+          <p class="inspiration-subtitle">Discover and apply curated prompts.</p>
+        </div>
+
+        <!-- Quote Section -->
+        <div class="inspiration-quote-wrapper">
+          <p id="inspiration-quote" class="inspiration-quote"></p>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="inspiration-cta-section">
+          <button id="use-prompt-btn" class="inspiration-use-btn">
+            <span class="material-symbols-outlined filled">add</span>
+            <span>Use this Prompt</span>
+          </button>
+
+          <!-- Pagination -->
+          <div id="inspiration-pagination" class="inspiration-pagination"></div>
+        </div>
+      </div>
     </div>
   </div>
 
