@@ -55,9 +55,15 @@
           </p>
 
           <div class="prompt-shell">
-            <label for="prompt-input" class="prompt-label">
-              Describe your design
-            </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="prompt-input" class="prompt-label" style="margin-bottom: 0;">
+                Describe your design
+              </label>
+              <button id="inspiration-btn" class="btn-inspiration">
+                <span style="font-size: 0.9rem;">✨</span>
+                <span>NEED INSPIRATION?</span>
+              </button>
+            </div>
             <div class="prompt-row">
               <textarea id="prompt-input" rows="3"
                 placeholder="Eg. A soft line-drawing of a coffee mug in warm brown ink"></textarea>
@@ -209,6 +215,20 @@
           </button>
         </p>
       </form>
+    </div>
+  </div>
+
+  <div id="inspiration-modal" class="modal-root hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel" style="max-width: 680px;">
+      <div class="modal-header">
+        <h2 class="serif modal-title">Inspiration Gallery</h2>
+        <button id="close-inspiration-btn" class="icon-button">✕</button>
+      </div>
+      <p class="modal-subcopy">
+        Tap any design below to use its prompt.
+      </p>
+      <div id="inspiration-grid" class="inspiration-grid"></div>
     </div>
   </div>
 

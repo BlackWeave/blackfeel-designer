@@ -152,19 +152,22 @@ h3,
 }
 
 @media (max-width: 900px) {
+
   /* Switch to Flexbox */
   .canvas-inner {
     display: flex;
     flex-direction: column;
   }
-  
+
   /* The visual preview stays constant at the top */
   .canvas-visual {
     order: 1;
     position: sticky;
-    top: 57px; /* Matches sticky header height */
+    top: 57px;
+    /* Matches sticky header height */
     z-index: 10;
-    width: calc(100% + 32px); /* Stretch to edges perfectly */
+    width: calc(100% + 32px);
+    /* Stretch to edges perfectly */
     margin-left: -16px;
     margin-right: -16px;
     padding-left: 16px;
@@ -172,7 +175,8 @@ h3,
     margin-bottom: 24px;
     padding-top: 4px;
     padding-bottom: 24px;
-    background-color: rgba(249, 250, 251, 0.82); /* Glass effect */
+    background-color: rgba(249, 250, 251, 0.82);
+    /* Glass effect */
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(229, 231, 235, 0.7);
@@ -181,42 +185,66 @@ h3,
   /* The controls flow below it and scroll naturally with the page */
   .canvas-copy {
     order: 2;
-    display: flex; 
+    display: flex;
     flex-direction: column;
   }
 
   /* Text and element alignment for mobile */
-  .hero-heading { font-size: 2rem; text-align: center; }
-  .hero-subcopy { font-size: 0.95rem; margin-bottom: 16px; text-align: center; }
-  .color-palette { margin-bottom: 24px; justify-content: center; width: 100%; }
-  .prompt-shell { width: 100%; }
-  #buy-now-btn { width: 100%; margin-top: 12px; }
+  .hero-heading {
+    font-size: 2rem;
+    text-align: center;
+  }
+
+  .hero-subcopy {
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .color-palette {
+    margin-bottom: 24px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .prompt-shell {
+    width: 100%;
+  }
+
+  #buy-now-btn {
+    width: 100%;
+    margin-top: 12px;
+  }
 
   /* Fix T-shirt and Canvas sizing for small screens */
   .tshirt-shell {
-    margin-top: 0; 
+    margin-top: 0;
     max-width: 100%;
   }
+
   .design-container {
     width: 160px;
     height: 160px;
   }
-  
+
   /* Maximize screen real estate by reducing paddings */
   .page-main {
     padding: 16px 12px 32px;
   }
+
   .canvas-section {
     padding: 16px 16px 24px;
   }
 
   /* Clean up the header to prevent text overlapping */
   .brand-tagline {
-    display: none; 
+    display: none;
   }
+
   .nav-main {
     gap: 12px;
   }
+
   .nav-link {
     font-size: 0.8rem;
   }
@@ -243,7 +271,7 @@ h3,
 
 .prompt-row {
   display: flex;
-  flex-direction: column; 
+  flex-direction: column;
   gap: 12px;
   align-items: stretch;
 }
@@ -488,7 +516,7 @@ h3,
   display: none;
   z-index: 50;
   border-radius: 50%;
-  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 }
 
 .design-container:hover .resize-handle,
@@ -514,7 +542,7 @@ h3,
   align-items: center;
   justify-content: center;
   z-index: 50;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   transition: background-color 0.16s ease, transform 0.08s ease;
   padding: 0;
 }
@@ -682,6 +710,34 @@ h3,
   text-decoration: underline;
 }
 
+/* Inspiration Button */
+.btn-inspiration {
+  background-color: #7993a3;
+  color: #121626e6;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.06s ease;
+  box-shadow: 0 2px 8px rgba(18, 22, 38, 0.15);
+}
+
+.btn-inspiration:hover {
+  background-color: #121626e6;
+  transform: translateY(-1px);
+}
+
+.btn-inspiration:active {
+  transform: translateY(0);
+}
+
 /* Archives and Orders Modals */
 .archives-grid {
   display: grid;
@@ -707,7 +763,7 @@ h3,
   border: 1px solid #e5e7eb;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .archives-grid img:hover {
@@ -741,16 +797,72 @@ h3,
 .orders-list::-webkit-scrollbar {
   width: 6px;
 }
+
 .archives-grid::-webkit-scrollbar-track,
 .orders-list::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .archives-grid::-webkit-scrollbar-thumb,
 .orders-list::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 999px;
 }
+
 .archives-grid::-webkit-scrollbar-thumb:hover,
 .orders-list::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
+}
+
+/* Inspiration Grid */
+.inspiration-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+@media (min-width: 600px) {
+  .inspiration-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Card */
+.inspiration-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.inspiration-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Image */
+.inspiration-card img {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+}
+
+/* Prompt Text */
+.inspiration-card-prompt {
+  padding: 12px;
+  font-size: 0.75rem;
+  color: #4b5563;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
