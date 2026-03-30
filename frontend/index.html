@@ -11,6 +11,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap"
     rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
 
   <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 
@@ -55,9 +57,15 @@
           </p>
 
           <div class="prompt-shell">
-            <label for="prompt-input" class="prompt-label">
-              Describe your design
-            </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="prompt-input" class="prompt-label" style="margin-bottom: 0;">
+                Describe your design
+              </label>
+              <button id="inspiration-btn" class="btn-inspiration">
+                <span style="font-size: 0.9rem;">✨</span>
+                <span>NEED INSPIRATION?</span>
+              </button>
+            </div>
             <div class="prompt-row">
               <textarea id="prompt-input" rows="3"
                 placeholder="Eg. A soft line-drawing of a coffee mug in warm brown ink"></textarea>
@@ -209,6 +217,55 @@
           </button>
         </p>
       </form>
+    </div>
+  </div>
+
+  <div id="inspiration-modal" class="modal-root hidden">
+    <!-- Navigation Arrows (Floating) -->
+    <button id="inspiration-prev-btn" class="inspiration-nav-btn inspiration-nav-left">
+      <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+    <button id="inspiration-next-btn" class="inspiration-nav-btn inspiration-nav-right">
+      <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+
+    <!-- Main Modal Content -->
+    <div class="modal-panel inspiration-modal-panel">
+      <button id="close-inspiration-btn" class="inspiration-close-btn">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+
+      <!-- Image Container -->
+      <div class="inspiration-image-container">
+        <div class="inspiration-image-wrapper">
+          <img id="inspiration-main-image" class="inspiration-main-image" src="" alt="Inspiration" />
+          <div class="inspiration-image-gradient"></div>
+        </div>
+      </div>
+
+      <!-- Content Area -->
+      <div class="inspiration-content-area">
+        <div class="inspiration-header">
+          <h2 class="inspiration-title">Inspiration Gallery</h2>
+          <p class="inspiration-subtitle">Discover and apply curated prompts.</p>
+        </div>
+
+        <!-- Quote Section -->
+        <div class="inspiration-quote-wrapper">
+          <p id="inspiration-quote" class="inspiration-quote"></p>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="inspiration-cta-section">
+          <button id="use-prompt-btn" class="inspiration-use-btn">
+            <span class="material-symbols-outlined filled">add</span>
+            <span>Use this Prompt</span>
+          </button>
+
+          <!-- Pagination -->
+          <div id="inspiration-pagination" class="inspiration-pagination"></div>
+        </div>
+      </div>
     </div>
   </div>
 

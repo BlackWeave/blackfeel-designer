@@ -1,6 +1,25 @@
 // --- Configuration ---
 const API_BASE = '/api';
 
+const CURATED_INSPIRATION = [
+    {
+        prompt: "Raymond Reddington from The BlackList.",
+        url: "https://cdn.blackfeel.co.in/designs/12ee2c0b-175f-4422-972f-87c9a3a255c0.webp"
+    },
+    {
+        prompt: "Retro synthwave sunset grid, neon pink & blue",
+        url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400"
+    },
+    {
+        prompt: "Botanical monstera with gold geometry",
+        url: "https://images.unsplash.com/photo-1545241047-6083a36a4d00?w=400"
+    },
+    {
+        prompt: "Vintage mountain poster twilight pastel",
+        url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400"
+    }
+];
+
 // --- T-shirt image maps ---
 const TSHIRT_FRONT_MAP = {
     '#1a1a1a': 'assets/black-tshirt.png',
@@ -84,7 +103,18 @@ const DOM = {
     closeOrdersBtn: document.getElementById('close-orders-btn'),
     ordersList: document.getElementById('orders-list'),
     emptyOrders: document.getElementById('empty-orders'),
-    shopNowBtn: document.getElementById('shop-now-btn')
+    shopNowBtn: document.getElementById('shop-now-btn'),
+
+    // Inspiration Gallery
+    inspirationBtn: document.getElementById('inspiration-btn'),
+    inspirationModal: document.getElementById('inspiration-modal'),
+    closeInspirationBtn: document.getElementById('close-inspiration-btn'),
+    inspirationPrevBtn: document.getElementById('inspiration-prev-btn'),
+    inspirationNextBtn: document.getElementById('inspiration-next-btn'),
+    inspirationMainImage: document.getElementById('inspiration-main-image'),
+    inspirationQuote: document.getElementById('inspiration-quote'),
+    usePromptBtn: document.getElementById('use-prompt-btn'),
+    inspirationPagination: document.getElementById('inspiration-pagination')
 };
 
 // --- Helper: get current design for active side ---
@@ -179,6 +209,69 @@ function setupEventListeners() {
         if (e.target === DOM.ordersModal) {
             DOM.ordersModal.classList.add('hidden');
         }
+        if (DOM.inspirationModal && e.target === DOM.inspirationModal) {
+            DOM.inspirationModal.classList.add('hidden');
+        }
+        // Also close when clicking on the backdrop inside the inspiration modal
+        if (DOM.inspirationModal && !DOM.inspirationModal.classList.contains('hidden')) {
+            const backdrop = DOM.inspirationModal.querySelector('.modal-backdrop');
+            if (e.target === backdrop) {
+                DOM.inspirationModal.classList.add('hidden');
+            }
+        }
+    });
+
+    // Inspiration Gallery
+    if (DOM.inspirationBtn) {
+        DOM.inspirationBtn.addEventListener('click', () => {
+            if (DOM.inspirationModal) {
+                DOM.inspirationModal.classList.remove('hidden');
+                renderInspiration();
+            }
+        });
+    }
+
+    if (DOM.closeInspirationBtn) {
+        DOM.closeInspirationBtn.addEventListener('click', () => {
+            if (DOM.inspirationModal) DOM.inspirationModal.classList.add('hidden');
+        });
+    }
+
+    // Navigation buttons for carousel
+    if (DOM.inspirationPrevBtn) {
+        DOM.inspirationPrevBtn.addEventListener('click', () => {
+            navigateInspiration(-1);
+        });
+    }
+
+    if (DOM.inspirationNextBtn) {
+        DOM.inspirationNextBtn.addEventListener('click', () => {
+            navigateInspiration(1);
+        });
+    }
+
+    // Use prompt button
+    if (DOM.usePromptBtn) {
+        DOM.usePromptBtn.addEventListener('click', () => {
+            if (DOM.currentInspirationItem) {
+                DOM.promptInput.value = DOM.currentInspirationItem.prompt;
+                DOM.inspirationModal.classList.add('hidden');
+                DOM.promptInput.focus();
+            }
+        });
+    }
+
+    // Keyboard navigation for inspiration modal
+    document.addEventListener('keydown', (e) => {
+        if (DOM.inspirationModal && !DOM.inspirationModal.classList.contains('hidden')) {
+            if (e.key === 'Escape') {
+                DOM.inspirationModal.classList.add('hidden');
+            } else if (e.key === 'ArrowLeft') {
+                navigateInspiration(-1);
+            } else if (e.key === 'ArrowRight') {
+                navigateInspiration(1);
+            }
+        }
     });
 
     // Color buttons
@@ -222,6 +315,78 @@ function setupEventListeners() {
     if (DOM.buyNowBtn) {
         DOM.buyNowBtn.addEventListener('click', handleBuyNow);
     }
+}
+
+// --- Inspiration Gallery Function ---
+let currentInspirationIndex = 0;
+
+function renderInspiration() {
+    if (!DOM.inspirationMainImage || !DOM.inspirationQuote || !DOM.inspirationPagination) return;
+
+    // Reset index to first item when opening modal
+    currentInspirationIndex = 0;
+    DOM.currentInspirationItem = CURATED_INSPIRATION[0];
+
+    updateInspirationDisplay();
+}
+
+function updateInspirationDisplay() {
+    const item = CURATED_INSPIRATION[currentInspirationIndex];
+    DOM.currentInspirationItem = item;
+
+    // Update main image
+    DOM.inspirationMainImage.src = item.url;
+    DOM.inspirationMainImage.alt = item.prompt;
+
+    // Update quote
+    DOM.inspirationQuote.textContent = `"${item.prompt}"`;
+
+    // Update pagination dots
+    renderPagination();
+
+    // Update navigation buttons state
+    updateNavigationButtons();
+}
+
+function renderPagination() {
+    if (!DOM.inspirationPagination) return;
+
+    DOM.inspirationPagination.innerHTML = '';
+
+    CURATED_INSPIRATION.forEach((_, index) => {
+        const dot = document.createElement('button');
+        dot.className = `inspiration-pagination-dot${index === currentInspirationIndex ? ' active' : ''}`;
+        dot.addEventListener('click', () => {
+            currentInspirationIndex = index;
+            updateInspirationDisplay();
+        });
+        DOM.inspirationPagination.appendChild(dot);
+    });
+}
+
+function updateNavigationButtons() {
+    // Disable prev button if at first item
+    if (DOM.inspirationPrevBtn) {
+        DOM.inspirationPrevBtn.style.opacity = currentInspirationIndex === 0 ? '0.5' : '1';
+        DOM.inspirationPrevBtn.style.cursor = currentInspirationIndex === 0 ? 'not-allowed' : 'pointer';
+    }
+
+    // Disable next button if at last item
+    if (DOM.inspirationNextBtn) {
+        const isLast = currentInspirationIndex === CURATED_INSPIRATION.length - 1;
+        DOM.inspirationNextBtn.style.opacity = isLast ? '0.5' : '1';
+        DOM.inspirationNextBtn.style.cursor = isLast ? 'not-allowed' : 'pointer';
+    }
+}
+
+function navigateInspiration(direction) {
+    const newIndex = currentInspirationIndex + direction;
+
+    // Check bounds
+    if (newIndex < 0 || newIndex >= CURATED_INSPIRATION.length) return;
+
+    currentInspirationIndex = newIndex;
+    updateInspirationDisplay();
 }
 
 // --- Side Toggle Logic ---
