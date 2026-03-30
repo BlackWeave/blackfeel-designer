@@ -185,9 +185,10 @@ export const db = {
         // Fetch full details including both front and back designs
         const orderQuery = `
         SELECT o.id as order_id, o.tshirt_size, o.combined_mockup_url,
-               d_front.id as design_id_front, d_front.tshirt_color,
+               d_front.id as design_id_front, d_front.tshirt_color as front_tshirt_color,
                d_front.finalized_image_url as front_finalized_url,
                d_front.processed_image_url as front_processed_url,
+               d_back.id as design_id_back, d_back.tshirt_color as back_tshirt_color,
                d_back.processed_image_url as back_processed_url
         FROM orders o
         LEFT JOIN designs d_front ON o.design_id_front = d_front.id
@@ -197,9 +198,14 @@ export const db = {
         const orderRes = await pool.query(orderQuery, [orderId]);
         const details = orderRes.rows[0];
 
-        // print_mockup_url = combined mockup or front finalized image
+        // print_mockup_url = combined mockup or front finalized image or back processed
         // raw_design_url_front = transparent front design for printer
         // raw_design_url_back = transparent back design for printer
+        // Use front design_id if available, otherwise use back design_id
+        const designId = details.design_id_front || details.design_id_back;
+        // Use front tshirt_color if available, otherwise use back
+        const tshirtColor = details.front_tshirt_color || details.back_tshirt_color;
+
         return await pool.query(
             `INSERT INTO fulfillment_queue
          (order_id, design_id, tshirt_color, tshirt_size, print_mockup_url, raw_design_url_front, raw_design_url_back)
@@ -207,11 +213,11 @@ export const db = {
          RETURNING id`,
             [
                 details.order_id,
-                details.design_id_front,
-                details.tshirt_color,
+                designId,
+                tshirtColor,
                 details.tshirt_size,
-                details.combined_mockup_url || details.front_finalized_url,
-                details.front_processed_url,
+                details.combined_mockup_url || details.front_finalized_url || details.back_processed_url,
+                details.front_processed_url || null,
                 details.back_processed_url || null
             ]
         );
@@ -234,20 +240,27 @@ export const db = {
 
     async getOrdersByUserId(userId) {
         const result = await pool.query(
-            `SELECT 
-                o.id, 
-                o.amount_in_paise, 
-                o.status, 
-                o.tshirt_size, 
-                o.tshirt_quantity, 
+            `SELECT
+                o.id,
+                o.amount_in_paise,
+                o.status,
+                o.tshirt_size,
+                o.tshirt_quantity,
                 o.created_at,
                 o.combined_mockup_url,
-                d.processed_image_url, 
-                d.finalized_image_url, 
-                d.tshirt_color, 
-                d.prompt
+                o.design_id_front,
+                o.design_id_back,
+                d_front.processed_image_url AS front_processed_image_url,
+                d_front.finalized_image_url AS front_finalized_image_url,
+                d_front.tshirt_color AS front_tshirt_color,
+                d_front.prompt AS front_prompt,
+                d_back.processed_image_url AS back_processed_image_url,
+                d_back.finalized_image_url AS back_finalized_image_url,
+                d_back.tshirt_color AS back_tshirt_color,
+                d_back.prompt AS back_prompt
              FROM orders o
-             LEFT JOIN designs d ON o.design_id_front = d.id
+             LEFT JOIN designs d_front ON o.design_id_front = d_front.id
+             LEFT JOIN designs d_back ON o.design_id_back = d_back.id
              WHERE o.user_id = $1
              ORDER BY o.created_at DESC`,
             [userId]

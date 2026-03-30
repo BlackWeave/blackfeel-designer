@@ -54,7 +54,7 @@ const DOM = {
     authError: document.getElementById('auth-error'),
     logoutBtn: document.getElementById('logout-btn'),
     myOrdersBtn: document.getElementById('my-orders-btn'),
-    
+
     // Main UI
     tshirtImg: document.getElementById('tshirt-base-img'),
     colorBtns: document.querySelectorAll('.color-btn'),
@@ -67,7 +67,7 @@ const DOM = {
     resizeHandle: document.getElementById('resize-handle'),
     removeDesignBtn: document.getElementById('remove-design-btn'),
     buyNowBtn: document.getElementById('buy-now-btn'),
-    
+
     // Side Toggle
     toggleFront: document.getElementById('toggle-front'),
     toggleBack: document.getElementById('toggle-back'),
@@ -116,7 +116,7 @@ async function init() {
     if (DOM.buyNowBtn) {
         DOM.buyNowBtn.classList.add('hidden');
     }
-    
+
     setupEventListeners();
     initInteractJS();
 
@@ -155,11 +155,11 @@ function setupEventListeners() {
         DOM.archivesModal.classList.remove('hidden');
         renderHistory();
     });
-    
+
     DOM.closeArchivesBtn.addEventListener('click', () => {
         DOM.archivesModal.classList.add('hidden');
     });
-    
+
     // Orders Modal
     DOM.closeOrdersBtn.addEventListener('click', () => {
         DOM.ordersModal.classList.add('hidden');
@@ -219,7 +219,7 @@ function setupEventListeners() {
     }
 
     // Buy Now button
-    if(DOM.buyNowBtn) {
+    if (DOM.buyNowBtn) {
         DOM.buyNowBtn.addEventListener('click', handleBuyNow);
     }
 }
@@ -287,16 +287,16 @@ async function checkAuth() {
 }
 
 function showAuthModal() {
-    if(DOM.authModal) DOM.authModal.classList.remove('hidden');
+    if (DOM.authModal) DOM.authModal.classList.remove('hidden');
 }
 
 function hideAuthModal() {
-    if(DOM.authModal) DOM.authModal.classList.add('hidden');
+    if (DOM.authModal) DOM.authModal.classList.add('hidden');
 }
 
 function showApp() {
     hideAuthModal();
-    if(DOM.logoutBtn) DOM.logoutBtn.classList.remove('hidden');
+    if (DOM.logoutBtn) DOM.logoutBtn.classList.remove('hidden');
     updateUI();
 }
 
@@ -394,7 +394,7 @@ async function handleMyOrders() {
 
     DOM.ordersModal.classList.remove('hidden');
     DOM.ordersList.innerHTML = '<div class="p-12 text-center text-gray-500 text-sm">Loading orders...</div>';
-    
+
     try {
         const response = await fetch(`${API_BASE}/orders`, {
             headers: { 'Authorization': `Bearer ${state.token}` }
@@ -441,32 +441,38 @@ function renderOrders(orders) {
         };
 
         const statusLabel = order.status.replace('_', ' ').toUpperCase();
-        
-        // Use combined mockup if available, else fall back to finalized/processed
-        let displayImageUrl = order.combined_mockup_url || order.finalized_image_url || order.processed_image_url;
+
+        // Use combined mockup if available, else fall back to front finalized/processed
+        let displayImageUrl = order.combined_mockup_url || order.front_finalized_image_url || order.front_processed_image_url;
         if (displayImageUrl && !displayImageUrl.startsWith('http')) {
             displayImageUrl = displayImageUrl.startsWith('/') ? displayImageUrl : `/${displayImageUrl}`;
         }
 
+        // Build prompt text from front and/or back designs
+        const promptParts = [];
+        if (order.front_prompt) promptParts.push(`Front: ${order.front_prompt}`);
+        if (order.back_prompt) promptParts.push(`Back: ${order.back_prompt}`);
+        const displayPrompt = promptParts.join(' | ') || 'Custom Tee';
+
         const orderCard = document.createElement('div');
         orderCard.style.cssText = 'background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; display: flex; flex-direction: row; min-height: 120px; margin-bottom: 12px;';
-        
+
         orderCard.innerHTML = `
             <div style="width: 120px; background: #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 8px; flex-shrink: 0;">
-                ${displayImageUrl ? 
-                    `<img src="${displayImageUrl}" 
-                          style="max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));" 
+                ${displayImageUrl ?
+                `<img src="${displayImageUrl}"
+                          style="max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));"
                           alt="Order Design"
-                          onerror="this.src='assets/black-tshirt.png'; this.style.opacity='0.5';">` : 
-                    `<div style="width: 100%; height: 100%; background: #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #6b7280;">NO IMAGE</div>`
-                }
+                          onerror="this.src='assets/black-tshirt.png'; this.style.opacity='0.5';">` :
+                `<div style="width: 100%; height: 100%; background: #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #6b7280;">NO IMAGE</div>`
+            }
             </div>
             <div style="flex: 1; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                     <div>
                         <div style="font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">${date}</div>
                         <h4 style="color: #111827; font-size: 14px; font-weight: 500; margin: 0;">Order #${order.id.slice(0, 8).toUpperCase()}</h4>
-                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;">"${order.prompt}"</div>
+                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px;">"${displayPrompt}"</div>
                     </div>
                     <span style="font-size: 10px; padding: 4px 8px; border-radius: 4px; ${statusColors[order.status] || 'background: rgba(107, 114, 128, 0.2); color: #9ca3af;'} font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; flex-shrink: 0;">
                         ${statusLabel}
@@ -482,14 +488,14 @@ function renderOrders(orders) {
                 </div>
             </div>
         `;
-        
+
         DOM.ordersList.appendChild(orderCard);
     });
 }
 
 function showAuthError(message, isRegister = false) {
     const errorEl = isRegister ? document.getElementById('auth-error-register') : DOM.authError;
-    if(errorEl) {
+    if (errorEl) {
         errorEl.textContent = message;
         errorEl.classList.remove('hidden');
     }
@@ -497,7 +503,7 @@ function showAuthError(message, isRegister = false) {
 
 function updateUI() {
     if (state.user) {
-        if(DOM.rateLimitDisplay) {
+        if (DOM.rateLimitDisplay) {
             DOM.rateLimitDisplay.textContent = `Number of Designs left: ${state.generationsLeft}`;
         }
 
@@ -536,7 +542,7 @@ function initInteractJS() {
             }
         });
 
-    if(DOM.resizeHandle) {
+    if (DOM.resizeHandle) {
         DOM.resizeHandle.addEventListener('mousedown', initResize);
         DOM.resizeHandle.addEventListener('touchstart', initResize, { passive: false });
     }
@@ -638,24 +644,24 @@ async function generateDesign() {
         await new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            
+
             const timeout = setTimeout(() => {
                 console.error('Image load timeout:', imageUrl);
                 reject(new Error('Image load timed out. Check your internet connection.'));
             }, 15000);
-            
+
             img.onload = () => {
                 clearTimeout(timeout);
                 console.log('✅ Image loaded successfully');
                 resolve(imageUrl);
             };
-            
+
             img.onerror = (e) => {
                 clearTimeout(timeout);
                 console.error('❌ Image load failed:', imageUrl);
                 reject(new Error('Failed to load generated image. The server may be unreachable.'));
             };
-            
+
             console.log('🔄 Loading image from:', imageUrl);
             img.src = imageUrl;
         });
@@ -664,7 +670,7 @@ async function generateDesign() {
 
     } catch (error) {
         console.error('Generation failed:', error);
-        
+
         if (error.message === 'Failed to load generated image') {
             alert('Design was generated but the image could not be loaded. Please check your internet connection and try again.');
         } else {
@@ -692,7 +698,7 @@ function handleNewDesign(url, promptText, data) {
         id: data.designId,
         url: url,
         prompt: promptText,
-        scale: 1, 
+        scale: 1,
         x: 0,
         y: 0
     };
@@ -702,7 +708,7 @@ function handleNewDesign(url, promptText, data) {
 
     if (data && data.generationsLeft !== undefined) {
         state.generationsLeft = data.generationsLeft;
-        if(DOM.rateLimitDisplay) {
+        if (DOM.rateLimitDisplay) {
             DOM.rateLimitDisplay.textContent = `Number of Designs left: ${state.generationsLeft}`;
         }
 
@@ -720,7 +726,7 @@ function handleNewDesign(url, promptText, data) {
 function loadDesignToCanvas(design) {
     // Set the design on the current side
     setCurrentDesign(design);
-    
+
     DOM.generatedImage.src = design.url;
     DOM.generatedImage.onerror = () => {
         console.error('Failed to load design on canvas:', design.url);
@@ -740,13 +746,13 @@ function loadDesignToCanvas(design) {
 function removeDesign() {
     // Clear only the current side's design
     setCurrentDesign(null);
-    
+
     // Remove the onerror handler
     DOM.generatedImage.onerror = null;
     DOM.generatedImage.src = '';
     DOM.designWrapper.classList.add('hidden');
     DOM.designWrapper.style.transform = 'translate(-50%, -50%)';
-    
+
     // Update BUY NOW visibility based on whether any design remains
     updateUI();
 }
@@ -799,9 +805,9 @@ async function loadHistory() {
         if (response.ok) {
             const data = await response.json();
             state.history = data.designs || [];
-            if(data.generationsUsed !== undefined) {
+            if (data.generationsUsed !== undefined) {
                 state.generationsLeft = 5 - data.generationsUsed;
-                if(DOM.rateLimitDisplay) {
+                if (DOM.rateLimitDisplay) {
                     DOM.rateLimitDisplay.textContent = `Number of Designs left: ${state.generationsLeft}`;
                 }
             }
@@ -845,27 +851,44 @@ async function bakeSideComposite(side) {
         // Draw t-shirt
         ctx.drawImage(tshirtImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // Map design position
-        const uiWidth = DOM.tshirtImg.clientWidth;
-        const uiHeight = DOM.tshirtImg.clientHeight;
-        const scaleX = CANVAS_WIDTH / uiWidth;
-        const scaleY = CANVAS_HEIGHT / uiHeight;
+        // Map design position from UI to canvas
+        // Use the t-shirt image natural dimensions for accurate scaling
+        const uiTshirtWidth = DOM.tshirtImg.clientWidth;
+        const uiTshirtHeight = DOM.tshirtImg.clientHeight;
 
+        // Calculate scale factors from UI to canvas
+        const scaleX = CANVAS_WIDTH / uiTshirtWidth;
+        const scaleY = CANVAS_HEIGHT / uiTshirtHeight;
+
+        // Get design image natural dimensions
+        const designNaturalWidth = designImg.naturalWidth || 512;
+        const designNaturalHeight = designImg.naturalHeight || 512;
+
+        // Calculate the displayed design size (scaled)
         const safeScale = design.scale || 1;
-        const finalWidth = (DOM.generatedImage.clientWidth * safeScale) * scaleX;
-        const finalHeight = (DOM.generatedImage.clientHeight * safeScale) * scaleY;
 
+        // Base design size relative to t-shirt (approximately 40% of t-shirt width at scale 1)
+        const baseDesignWidth = uiTshirtWidth * 0.4;
+        const aspectRatio = designNaturalWidth / designNaturalHeight;
+        const baseDesignHeight = baseDesignWidth / aspectRatio;
+
+        // Apply user's scale
+        const finalWidth = baseDesignWidth * safeScale * scaleX;
+        const finalHeight = baseDesignHeight * safeScale * scaleY;
+
+        // Apply position offset
         const offsetX = design.x || 0;
         const offsetY = design.y || 0;
-        
+
+        // Center position + offset
         const finalX = (CANVAS_WIDTH / 2) + (offsetX * scaleX);
         const finalY = (CANVAS_HEIGHT / 2) + (offsetY * scaleY);
 
         ctx.drawImage(
-            designImg, 
-            finalX - (finalWidth / 2), 
-            finalY - (finalHeight / 2), 
-            finalWidth, 
+            designImg,
+            finalX - (finalWidth / 2),
+            finalY - (finalHeight / 2),
+            finalWidth,
             finalHeight
         );
 
@@ -881,12 +904,10 @@ async function createCombinedMockup() {
     const frontImage = await bakeSideComposite('front');
     const backImage = await bakeSideComposite('back');
 
-    // If only one side has a design, use that as the mockup
+    // If neither side has a design, return null
     if (!frontImage && !backImage) return null;
-    if (!frontImage) return backImage;
-    if (!backImage) return frontImage;
 
-    // Create side-by-side composite
+    // Create side-by-side composite (always show both sides for clarity)
     try {
         const canvas = document.createElement('canvas');
         const SIDE_WIDTH = 1000;
@@ -899,17 +920,25 @@ async function createCombinedMockup() {
         ctx.fillStyle = '#f5f5f2';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Load front composite
-        const frontImg = new Image();
-        frontImg.src = frontImage;
-        await new Promise(res => frontImg.onload = res);
-        ctx.drawImage(frontImg, 0, 0, SIDE_WIDTH, SIDE_HEIGHT);
+        // If only one side has a design, use it for both sides (or show blank for the other)
+        const displayFront = frontImage || backImage;
+        const displayBack = backImage || frontImage;
 
-        // Load back composite
-        const backImg = new Image();
-        backImg.src = backImage;
-        await new Promise(res => backImg.onload = res);
-        ctx.drawImage(backImg, SIDE_WIDTH + 40, 0, SIDE_WIDTH, SIDE_HEIGHT);
+        // Load and draw front composite (or the only available side)
+        if (displayFront) {
+            const frontImg = new Image();
+            frontImg.src = displayFront;
+            await new Promise(res => frontImg.onload = res);
+            ctx.drawImage(frontImg, 0, 0, SIDE_WIDTH, SIDE_HEIGHT);
+        }
+
+        // Load and draw back composite (or the only available side)
+        if (displayBack) {
+            const backImg = new Image();
+            backImg.src = displayBack;
+            await new Promise(res => backImg.onload = res);
+            ctx.drawImage(backImg, SIDE_WIDTH + 40, 0, SIDE_WIDTH, SIDE_HEIGHT);
+        }
 
         // Labels
         ctx.fillStyle = '#111827';
@@ -967,7 +996,7 @@ function showSizeModal() {
     const modal = document.createElement('div');
     modal.id = 'size-modal';
     modal.className = 'modal-root';
-    
+
     // Show which sides have designs
     const sideInfo = [];
     if (state.frontDesign) sideInfo.push('Front');
@@ -1019,11 +1048,11 @@ function showSizeModal() {
             alert('Please select a size');
             return;
         }
-        
+
         const proceedBtn = document.getElementById('proceed-buy-btn');
         proceedBtn.disabled = true;
         proceedBtn.textContent = 'Finalizing...';
-        
+
         try {
             // Finalize front design if it exists
             if (state.frontDesign) {
@@ -1046,7 +1075,7 @@ function showSizeModal() {
             // Create combined mockup
             proceedBtn.textContent = 'Creating mockup...';
             const combinedMockupBase64 = await createCombinedMockup();
-            
+
             // Upload combined mockup to R2
             let combinedMockupUrl = null;
             if (combinedMockupBase64) {
@@ -1121,7 +1150,7 @@ async function initiateCheckout(tshirtSize, combinedMockupUrl) {
             name: 'March Studio',
             description: 'Custom Designed T-Shirt',
             order_id: paymentData.razorpayOrderId,
-            handler: function(response) {
+            handler: function (response) {
                 verifyPayment(response, orderData.orderId);
             },
             prefill: {
@@ -1135,7 +1164,7 @@ async function initiateCheckout(tshirtSize, combinedMockupUrl) {
         };
 
         const rzp = new Razorpay(options);
-        rzp.on('payment.failed', function(response) {
+        rzp.on('payment.failed', function (response) {
             alert('Payment failed: ' + response.error.description);
         });
         rzp.open();
