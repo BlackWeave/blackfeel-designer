@@ -1,7 +1,7 @@
 import express from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { db } from '../models/database.js';
-import { openRouterService } from '../services/openRouter.js';
+import { vertexAiService } from '../services/vertexAi.js';
 import { imageStorage } from '../services/imageStorage.js';
 import { removeBgService } from '../services/removeBg.js';
 
@@ -23,8 +23,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
             return res.status(403).json({ error: 'Daily limit reached' });
         }
 
-        console.log('✨ Generating image with Gemini 2.5 via OpenRouter...');
-        const base64DataUrl = await openRouterService.generateImage(prompt);
+        console.log('✨ Generating image with Gemini 3.1 (Nano Banana 2) via Vertex AI...');
+        const base64DataUrl = await vertexAiService.generateImage(prompt);
         
         // Remove background for the interactive decal
         const transparentBase64 = await removeBgService.process(base64DataUrl);
