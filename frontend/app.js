@@ -892,32 +892,18 @@ function loadDesignToCanvas(design) {
     // Set the design on the current side
     setCurrentDesign(design);
 
-    // Preload image to ensure it loads before displaying
-    const img = new Image();
-    img.onload = () => {
-        DOM.generatedImage.src = design.url;
-        DOM.designWrapper.classList.remove('hidden');
-        applyTransform(design.x, design.y, design.scale);
-        updateUI();
-    };
-    img.onerror = () => {
+    DOM.generatedImage.src = design.url;
+    DOM.generatedImage.onerror = () => {
         console.error('Failed to load design on canvas:', design.url);
-        // Try without CORS
-        const imgNoCors = new Image();
-        imgNoCors.onload = () => {
-            DOM.generatedImage.src = design.url;
-            DOM.generatedImage.removeAttribute('crossorigin');
-            DOM.designWrapper.classList.remove('hidden');
-            applyTransform(design.x, design.y, design.scale);
-            updateUI();
-        };
-        imgNoCors.onerror = () => {
-            console.error('Failed to load design even without CORS:', design.url);
-            alert('Failed to display design. Please try regenerating.');
-        };
-        imgNoCors.src = design.url;
+        alert('Failed to display design. Please try regenerating.');
     };
-    img.src = design.url;
+    DOM.designWrapper.classList.remove('hidden');
+
+    // Apply position constraints
+    applyTransform(design.x, design.y, design.scale);
+
+    // Update UI to show BUY NOW button (handles both visibility and enabled state)
+    updateUI();
 }
 
 function removeDesign() {
