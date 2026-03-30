@@ -892,20 +892,32 @@ function loadDesignToCanvas(design) {
     // Set the design on the current side
     setCurrentDesign(design);
 
-    DOM.generatedImage.src = design.url;
-    DOM.generatedImage.onerror = () => {
-        console.error('Failed to load design on canvas:', design.url);
-        alert('Failed to display design. Please try regenerating.');
+    // Preload image to ensure it loads before displaying
+    const img = new Image();
+    img.onload = () => {
+        DOM.generatedImage.src = design.url;
+        DOM.designWrapper.classList.remove('hidden');
+        applyTransform(design.x, design.y, design.scale);
+        updateUI();
     };
-    DOM.designWrapper.classList.remove('hidden');
-
-    // Apply position constraints
-    applyTransform(design.x, design.y, design.scale);
-
-    // Show BUY NOW button
-    if (DOM.buyNowBtn) {
-        DOM.buyNowBtn.classList.remove('hidden');
-    }
+    img.onerror = () => {
+        console.error('Failed to load design on canvas:', design.url);
+        // Try without CORS
+        const imgNoCors = new Image();
+        imgNoCors.onload = () => {
+            DOM.generatedImage.src = design.url;
+            DOM.generatedImage.removeAttribute('crossorigin');
+            DOM.designWrapper.classList.remove('hidden');
+            applyTransform(design.x, design.y, design.scale);
+            updateUI();
+        };
+        imgNoCors.onerror = () => {
+            console.error('Failed to load design even without CORS:', design.url);
+            alert('Failed to display design. Please try regenerating.');
+        };
+        imgNoCors.src = design.url;
+    };
+    img.src = design.url;
 }
 
 function removeDesign() {
@@ -936,6 +948,7 @@ function restoreFromHistory(id) {
         // Loads onto the currently active side
         loadDesignToCanvas(normalizedDesign);
         DOM.archivesModal.classList.add('hidden');
+        updateUI();
     }
 }
 
