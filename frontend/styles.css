@@ -950,26 +950,26 @@ h3,
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 9999px;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  color: #805533;
+  color: #000000;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 70;
 }
 
 .inspiration-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-50%) scale(1.05);
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .inspiration-nav-btn:active {
@@ -977,15 +977,15 @@ h3,
 }
 
 .inspiration-nav-left {
-  left: 2rem;
+  left: calc(50% - 540px - 3rem);
 }
 
 .inspiration-nav-right {
-  right: 2rem;
+  right: calc(50% - 540px - 3rem);
 }
 
 .inspiration-nav-btn .material-symbols-outlined {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
 }
 
 /* Image Container - Left side (60%) */
@@ -1064,14 +1064,14 @@ h3,
   position: relative;
   padding: 2rem 0.5rem;
   margin-bottom: 3rem;
-  border-left: 2px solid rgba(128, 85, 51, 0.2);
+  border-left: 2px solid rgba(0, 0, 0, 0.2);
 }
 
 .inspiration-quote {
   font-family: 'Playfair Display', 'Times New Roman', serif;
   font-style: italic;
   font-size: 1.75rem;
-  color: #805533;
+  color: #000000;
   margin: 0;
   line-height: 1.5;
 }
@@ -1090,8 +1090,8 @@ h3,
   padding: 1.25rem 2rem;
   border: none;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #805533, #724929);
-  color: #fff6f2;
+  background: #6B8E23;
+  color: #ffffff;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
@@ -1101,12 +1101,12 @@ h3,
   gap: 0.75rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 20px 40px rgba(128, 85, 51, 0.25);
+  box-shadow: 0 20px 40px rgba(107, 142, 35, 0.3);
 }
 
 .inspiration-use-btn:hover {
   transform: scale(1.02);
-  box-shadow: 0 24px 48px rgba(128, 85, 51, 0.3);
+  box-shadow: 0 24px 48px rgba(107, 142, 35, 0.4);
 }
 
 .inspiration-use-btn:active {
