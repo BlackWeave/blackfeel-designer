@@ -8,9 +8,8 @@ const ai = new GoogleGenAI({
 
 export const vertexAiService = {
     async generateImage(prompt) {
-        console.log(`📡 Sending refined request to GCP Project: ${process.env.GCP_PROJECT_ID}`);
+        console.log(`📡 Sending search-grounded request to GCP Project: ${process.env.GCP_PROJECT_ID}`);
 
-        // A more structured prompt to ensure single, stunning compositions
         const fullPrompt = `A single, centered, stunning graphic design asset of: ${prompt}. 
             Professional detailed illustration, silk-screen print aesthetic, bold vibrant colors, 
             intricate linework, sharp clean edges, flat design, vector art style, high-end streetwear aesthetic. 
@@ -25,11 +24,14 @@ export const vertexAiService = {
                 contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
                 config: {
                     responseModalities: ['IMAGE'],
-                    // Gemini 3.1 supports aspect ratio control
                     imageConfig: {
                         aspectRatio: "1:1",
                         outputMimeType: "image/png"
-                    }
+                    },
+                    // The CORRECT syntax for Search Grounding in the new SDK
+                    tools: [
+                        { googleSearch: {} }
+                    ]
                 }
             });
 
