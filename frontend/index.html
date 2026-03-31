@@ -17,6 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body class="page-root">
@@ -171,6 +172,21 @@
         Create an account to keep your designs, track orders and
         return to them anytime.
       </p>
+
+      <div id="g_id_onload" data-client_id="401987496055-d9cc1n13dp3ilvi9nisucrne76u4e9qe.apps.googleusercontent.com"
+        data-context="use" data-ux_mode="popup" data-callback="handleGoogleCallback" data-auto_prompt="false">
+      </div>
+
+      <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+        data-text="continue_with" data-size="large" data-logo_alignment="left"
+        style="display: flex; justify-content: center; margin-top: 16px;">
+      </div>
+
+      <div style="display: flex; align-items: center; margin: 16px 0;">
+        <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+        <div style="padding: 0 12px; color: #9ca3af; font-size: 0.8rem; text-transform: uppercase;">or</div>
+        <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+      </div>
 
       <form id="login-form" class="auth-form">
         <div class="field">
