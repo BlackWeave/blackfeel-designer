@@ -25,9 +25,9 @@ app.use(helmet({
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             // 'unsafe-inline' is needed for the onclick handlers in your HTML
-            "script-src": ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://checkout.razorpay.com", "https://cdn.jsdelivr.net"],
-            "script-src-attr": ["'unsafe-inline'"], 
-            "frame-src": ["'self'", "https://api.razorpay.com"],
+            "script-src": ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://checkout.razorpay.com", "https://cdn.jsdelivr.net", "https://accounts.google.com"],
+            "script-src-attr": ["'unsafe-inline'"],
+            "frame-src": ["'self'", "https://api.razorpay.com", "https://accounts.google.com"],
             "img-src": ["'self'", "data:", "blob:", "https:"],
             "connect-src": ["'self'", "https:", "http://localhost:3000"],
             "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -35,6 +35,7 @@ app.use(helmet({
         },
     },
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
     crossOriginEmbedderPolicy: false,
 }));
 app.use(cors({

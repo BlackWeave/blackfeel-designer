@@ -794,6 +794,11 @@ async function generateDesign() {
         return;
     }
 
+    if (!state.token) {
+        showAuthModal();
+        return;
+    }
+
     setLoadingState(true);
 
     try {
@@ -1419,6 +1424,36 @@ async function verifyPayment(paymentResponse, orderId) {
         alert(error.message || 'Payment verification failed');
     }
 }
+
+// --- Google OAuth Handler ---
+async function handleGoogleCallback(response) {
+    try {
+        const res = await fetch(`${API_BASE}/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: response.credential })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            state.token = data.token;
+            state.user = data.user;
+            localStorage.setItem('luxe_token', state.token);
+            state.generationsLeft = 5 - state.user.generationsUsed;
+            showApp();
+            loadHistory();
+        } else {
+            showAuthError(data.error || 'Google Authentication failed');
+        }
+    } catch (error) {
+        console.error('Google Auth Error:', error);
+        showAuthError('Connection error during Google Sign-in');
+    }
+}
+
+// Expose explicitly to window so the Google script can trigger it
+window.handleGoogleCallback = handleGoogleCallback;
 
 // Start the app
 init();
