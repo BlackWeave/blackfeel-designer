@@ -117,6 +117,38 @@ router.post('/generate', authMiddleware, async (req, res) => {
     }
 });
 
+// Save curated design directly bypassing generation
+router.post('/curated', authMiddleware, async (req, res) => {
+    try {
+        const { prompt, imageUrl, tshirtColor = '#1a1a1a' } = req.body;
+
+        if (!imageUrl) {
+            return res.status(400).json({ error: 'Image URL is required' });
+        }
+
+        const user = await db.getUserById(req.userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Store design with the curated CDN URL
+        const design = await db.createDesign(
+            req.userId,
+            prompt || 'Curated Design',
+            imageUrl,
+            imageUrl,
+            tshirtColor
+        );
+
+        res.json({
+            success: true,
+            designId: design.id,
+            imageUrl: imageUrl
+        });
+    } catch (error) {
+        console.error('Curated save error:', error);
+        res.status(500).json({ error: 'Failed to save curated design: ' + error.message });
+    }
+});
+
 
 // Get design history
 router.get('/history', authMiddleware, async (req, res) => {

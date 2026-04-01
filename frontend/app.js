@@ -342,15 +342,63 @@ function setupEventListeners() {
                     el.classList.remove('chip-selected');
                 }, 300);
 
-                // Inject prompt
-                DOM.promptInput.value = el.textContent;
-                DOM.promptInput.focus();
+                const imageUrl = el.dataset.image;
 
-                // Pulse input for feedback
-                DOM.promptInput.classList.add('input-pulse');
-                setTimeout(() => {
-                    DOM.promptInput.classList.remove('input-pulse');
-                }, 400);
+                if (imageUrl) {
+                    if (!state.token) {
+                        showAuthModal();
+                        return;
+                    }
+
+                    // Save to backend instantly to get a valid UUID for the design.
+                    (async () => {
+                        setLoadingState(true);
+                        try {
+                            const response = await fetch(`${API_BASE}/designs/curated`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${state.token}`
+                                },
+                                body: JSON.stringify({
+                                    prompt: el.textContent,
+                                    imageUrl: imageUrl,
+                                    tshirtColor: state.currentTshirtColor
+                                })
+                            });
+
+                            const data = await response.json();
+                            if (!response.ok) throw new Error(data.error);
+
+                            const newDesign = {
+                                id: data.designId,
+                                url: data.imageUrl,
+                                prompt: el.textContent,
+                                x: 0,
+                                y: 0,
+                                scale: 1
+                            };
+                            
+                            loadDesignToCanvas(newDesign);
+                            updateUI();
+                        } catch (error) {
+                            console.error('Error loading curated design:', error);
+                            alert('Failed to load curated design.');
+                        } finally {
+                            setLoadingState(false);
+                        }
+                    })();
+                } else {
+                    // Inject prompt
+                    DOM.promptInput.value = el.textContent;
+                    DOM.promptInput.focus();
+
+                    // Pulse input for feedback
+                    DOM.promptInput.classList.add('input-pulse');
+                    setTimeout(() => {
+                        DOM.promptInput.classList.remove('input-pulse');
+                    }, 400);
+                }
             });
         });
     }
