@@ -25,12 +25,12 @@ const CURATED_INSPIRATION = [
         url: "https://cdn.blackfeel.co.in/designs/f92105f7-4d94-48a1-9888-f9357182a4bb.webp"
     },
     {
-        prompt: "Botanical monstera with gold geometry",
-        url: "https://images.unsplash.com/photo-1545241047-6083a36a4d00?w=400"
+        prompt: "Thor and Hulk",
+        url: "https://cdn.blackfeel.co.in/designs/2a107926-7118-4423-90f7-773bd6dac031.webp"
     },
     {
-        prompt: "Vintage mountain poster twilight pastel",
-        url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400"
+        prompt: "Seedha Mauth",
+        url: "https://cdn.blackfeel.co.in/designer-inspirations/seedha_mauth_name.jpeg"
     }
 ];
 
