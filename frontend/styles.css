@@ -1266,22 +1266,6 @@ h3,
   transform: scale(0.98);
 }
 
-/* Style Select */
-.style-select {
-  font-size: 0.75rem;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: white;
-  color: #4b5563;
-  cursor: pointer;
-  outline: none;
-}
-
-.style-select:focus {
-  border-color: #111827;
-}
-
 /* Input Pulse Animation */
 @keyframes inputPulse {
   0% { box-shadow: 0 0 0 0 rgba(17, 24, 39, 0.2); }

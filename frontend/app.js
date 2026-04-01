@@ -135,7 +135,6 @@ const DOM = {
     inspirationPagination: document.getElementById('inspiration-pagination'),
 
     // Addons
-    styleModifier: document.getElementById('style-modifier'),
     suggestionChips: document.querySelectorAll('.suggestion-chip')
 };
 
@@ -875,10 +874,6 @@ async function generateDesign() {
     if (!prompt) {
         alert('Please describe your design vision');
         return;
-    }
-
-    if (DOM.styleModifier && DOM.styleModifier.value) {
-        prompt += DOM.styleModifier.value;
     }
 
     if (!state.token) {
