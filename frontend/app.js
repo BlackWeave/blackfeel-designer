@@ -31,6 +31,10 @@ const CURATED_INSPIRATION = [
     {
         prompt: "Seedha Mauth",
         url: "https://cdn.blackfeel.co.in/designer-inspirations/seedha_mauth_name.jpeg"
+    },
+    {
+        prompt: "The world view",
+        url: "https://cdn.blackfeel.co.in/designer-inspirations/b29b7d27-ae27-48c1-b050-1514855e320f.png"
     }
 ];
 
