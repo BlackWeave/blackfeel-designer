@@ -132,7 +132,11 @@ const DOM = {
     inspirationMainImage: document.getElementById('inspiration-main-image'),
     inspirationQuote: document.getElementById('inspiration-quote'),
     usePromptBtn: document.getElementById('use-prompt-btn'),
-    inspirationPagination: document.getElementById('inspiration-pagination')
+    inspirationPagination: document.getElementById('inspiration-pagination'),
+
+    // Addons
+    styleModifier: document.getElementById('style-modifier'),
+    suggestionChips: document.querySelectorAll('.suggestion-chip')
 };
 
 // --- Helper: get current design for active side ---
@@ -323,6 +327,33 @@ function setupEventListeners() {
 
     // Generate button
     DOM.generateBtn.addEventListener('click', generateDesign);
+
+    // Suggestion Chips
+    if (DOM.suggestionChips) {
+        DOM.suggestionChips.forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                const el = e.target;
+                
+                // Apply selected state
+                el.classList.add('chip-selected');
+
+                // Remove after short delay
+                setTimeout(() => {
+                    el.classList.remove('chip-selected');
+                }, 300);
+
+                // Inject prompt
+                DOM.promptInput.value = el.textContent;
+                DOM.promptInput.focus();
+
+                // Pulse input for feedback
+                DOM.promptInput.classList.add('input-pulse');
+                setTimeout(() => {
+                    DOM.promptInput.classList.remove('input-pulse');
+                }, 400);
+            });
+        });
+    }
 
     // Remove design button
     if (DOM.removeDesignBtn) {
@@ -792,10 +823,14 @@ function applyTransform(x, y, scale) {
 
 // --- Design Generation ---
 async function generateDesign() {
-    const prompt = DOM.promptInput.value.trim();
+    let prompt = DOM.promptInput.value.trim();
     if (!prompt) {
         alert('Please describe your design vision');
         return;
+    }
+
+    if (DOM.styleModifier && DOM.styleModifier.value) {
+        prompt += DOM.styleModifier.value;
     }
 
     if (!state.token) {

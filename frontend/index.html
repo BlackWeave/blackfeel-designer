@@ -59,9 +59,18 @@
 
           <div class="prompt-shell">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <label for="prompt-input" class="prompt-label" style="margin-bottom: 0;">
-                Describe your design
-              </label>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <label for="prompt-input" class="prompt-label" style="margin-bottom: 0;">
+                  Describe your design
+                </label>
+                <select id="style-modifier" class="style-select">
+                  <option value="">No specific style</option>
+                  <option value=", minimalist flat vector illustration, clean lines">Minimalist Vector</option>
+                  <option value=", retro 80s synthwave style, neon colors">Retro 80s</option>
+                  <option value=", detailed vintage botanical engraving">Vintage Botanical</option>
+                  <option value=", cyberpunk aesthetic, highly detailed">Cyberpunk</option>
+                </select>
+              </div>
               <button id="inspiration-btn" class="btn-inspiration">
                 <span style="font-size: 0.9rem;">✨</span>
                 <span>NEED INSPIRATION?</span>
@@ -74,6 +83,11 @@
                 <span id="btn-loader" class="btn-loader hidden"></span>
                 <span class="btn-primary-text">Generate</span>
               </button>
+            </div>
+            <div class="inline-suggestions" id="inline-suggestions">
+              <span class="suggestion-chip">Minimalist line-art cat</span>
+              <span class="suggestion-chip">Neon cyberpunk skyline</span>
+              <span class="suggestion-chip">Vintage national park poster</span>
             </div>
             <div id="rate-limit-display" class="prompt-meta"></div>
           </div>

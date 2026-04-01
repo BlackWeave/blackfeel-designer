@@ -1227,3 +1227,67 @@ h3,
     font-size: 0.9rem;
   }
 }
+
+/* Inline Suggestions */
+.inline-suggestions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.inline-suggestions::-webkit-scrollbar { display: none; }
+
+.suggestion-chip {
+  font-size: 0.75rem;
+  color: #4b5563;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.suggestion-chip:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.suggestion-chip:active {
+  transform: scale(0.95);
+}
+
+.chip-selected {
+  background: #111827;
+  color: white;
+  border-color: #111827;
+  transform: scale(0.98);
+}
+
+/* Style Select */
+.style-select {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #4b5563;
+  cursor: pointer;
+  outline: none;
+}
+
+.style-select:focus {
+  border-color: #111827;
+}
+
+/* Input Pulse Animation */
+@keyframes inputPulse {
+  0% { box-shadow: 0 0 0 0 rgba(17, 24, 39, 0.2); }
+  100% { box-shadow: 0 0 0 8px rgba(17, 24, 39, 0); }
+}
+
+.input-pulse {
+  animation: inputPulse 0.4s ease;
+}
