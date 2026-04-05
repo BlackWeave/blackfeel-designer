@@ -104,6 +104,8 @@ const DOM = {
     resizeHandle: document.getElementById('resize-handle'),
     removeDesignBtn: document.getElementById('remove-design-btn'),
     buyNowBtn: document.getElementById('buy-now-btn'),
+    editModeWrapper: document.getElementById('edit-mode-wrapper'),
+    editModeCheckbox: document.getElementById('edit-mode-checkbox'),
 
     // Side Toggle
     toggleFront: document.getElementById('toggle-front'),
@@ -783,6 +785,15 @@ function updateUI() {
                 DOM.buyNowBtn.disabled = true;
             }
         }
+
+        // Show/hide edit mode toggle
+        const currentDesign = getCurrentDesign();
+        if (currentDesign && DOM.editModeWrapper) {
+            DOM.editModeWrapper.classList.remove('hidden');
+        } else if (DOM.editModeWrapper) {
+            DOM.editModeWrapper.classList.add('hidden');
+            if (DOM.editModeCheckbox) DOM.editModeCheckbox.checked = false;
+        }
     }
 }
 
@@ -883,17 +894,29 @@ async function generateDesign() {
 
     setLoadingState(true);
 
+    const isEditMode = DOM.editModeCheckbox.checked;
+    const currentDesign = getCurrentDesign();
+
+    // Determine Endpoint and Payload
+    const endpoint = isEditMode && currentDesign ? `${API_BASE}/designs/edit` : `${API_BASE}/designs/generate`;
+    const payload = {
+        prompt: prompt,
+        tshirtColor: state.currentTshirtColor
+    };
+
+    if (isEditMode && currentDesign) {
+        payload.designId = currentDesign.id;
+        console.log(`✏️ Edit Mode active. Modifying design ID: ${currentDesign.id}`);
+    }
+
     try {
-        const response = await fetch(`${API_BASE}/designs/generate`, {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${state.token}`
             },
-            body: JSON.stringify({
-                prompt: prompt,
-                tshirtColor: state.currentTshirtColor
-            })
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();
@@ -904,7 +927,7 @@ async function generateDesign() {
 
         const imageUrl = data.imageUrl;
 
-        console.log(`🎨 Generated ${state.currentSide} design received:`, imageUrl);
+        console.log(`🎨 ${isEditMode ? 'Edited' : 'Generated'} ${state.currentSide} design received:`, imageUrl);
 
         // Preload image with timeout
         await new Promise((resolve, reject) => {
@@ -934,14 +957,9 @@ async function generateDesign() {
 
         handleNewDesign(imageUrl, prompt, data);
 
-    } catch (error) {
-        console.error('Generation failed:', error);
+        // Reset edit checkbox after successful edit
+        if (DOM.editModeCheckbox) DOM.editModeCheckbox.checked = false;
 
-        if (error.message === 'Failed to load generated image') {
-            alert('Design was generated but the image could not be loaded. Please check your internet connection and try again.');
-        } else {
-            alert(error.message || 'Failed to generate design');
-        }
     } finally {
         setLoadingState(false);
     }

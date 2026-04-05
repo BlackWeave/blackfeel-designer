@@ -72,10 +72,17 @@
             <div class="prompt-row">
               <textarea id="prompt-input" rows="3"
                 placeholder="Eg. A soft line-drawing of a coffee mug in warm brown ink"></textarea>
-              <button id="generate-btn" class="btn-primary">
-                <span id="btn-loader" class="btn-loader hidden"></span>
-                <span class="btn-primary-text">Generate</span>
-              </button>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button id="generate-btn" class="btn-primary">
+                  <span id="btn-loader" class="btn-loader hidden"></span>
+                  <span class="btn-primary-text">Generate</span>
+                </button>
+                <label id="edit-mode-wrapper" class="hidden"
+                  style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #4b5563; cursor: pointer;">
+                  <input type="checkbox" id="edit-mode-checkbox" style="cursor: pointer;">
+                  Edit current design
+                </label>
+              </div>
             </div>
             <div class="inline-suggestions" id="inline-suggestions">
               <span class="suggestion-chip"
