@@ -169,8 +169,10 @@
                 btn.classList.add('hidden');
                 successMsg.classList.remove('hidden');
 
-                // Redirect to the designer after a short celebratory pause
+                // Redirect to the designer after a short celebratory pause.
+                // Clear any previous session so the auth popup is always shown fresh.
                 setTimeout(() => {
+                    localStorage.removeItem('luxe_token');
                     window.location.href = '/designer';
                 }, 1800);
 

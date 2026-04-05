@@ -175,6 +175,8 @@ async function init() {
 
     if (state.token) {
         await checkAuth();
+    } else {
+        showAuthModal();
     }
 }
 
