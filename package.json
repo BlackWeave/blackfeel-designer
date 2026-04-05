@@ -8,6 +8,7 @@
     "start": "node backend/server.js",
     "dev": "nodemon backend/server.js",
     "migrate": "node backend/migrations/migrate.js",
+    "migrate:waitlist": "node backend/migrations/migrate_waitlist.js",
     "fix-urls": "node backend/migrations/fix-r2-urls.js"
   },
   "dependencies": {

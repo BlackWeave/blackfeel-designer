@@ -15,6 +15,7 @@ import authRoutes from './routes/auth.js';
 import designRoutes from './routes/designs.js';
 import orderRoutes from './routes/orders.js';
 import paymentRoutes from './routes/payments.js';
+import waitlistRoutes from './routes/waitlist.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,21 +47,35 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Serve frontend static files
-app.use(express.static(path.join(__dirname, '../frontend')));
+// Serve frontend static files (index: false so our explicit routes control which HTML is served)
+app.use(express.static(path.join(__dirname, '../frontend'), { index: false }));
+
+// Also serve waitlist page assets (CSS, images) from the waitlist_page sub-folder
+app.use('/waitlist_page', express.static(path.join(__dirname, '../frontend/waitlist_page')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/designs', designRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/waitlist', waitlistRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve frontend for all other routes (SPA)
+// Root → Waitlist landing page
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/waitlist_page/index_waitlist.html'));
+});
+
+// /designer → Main AI design studio (SPA entry-point)
+app.get('/designer', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
+// Fallback for all other SPA sub-routes (keeps client-side routing working)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });

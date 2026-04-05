@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>BlackWeave Designer – Early Access</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap"
+        rel="stylesheet" />
+
+    <link rel="stylesheet" href="/waitlist_page/styles.css" />
+
+    <style>
+        /* Minimal inline CSS to extend your existing .field inputs to <select> elements */
+        .field select {
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            font-family: inherit;
+            font-size: 0.95rem;
+            background-color: #ffffff;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+
+        .field select:focus {
+            border-color: #111827;
+            box-shadow: 0 0 0 1px #11182740;
+        }
+
+        .waitlist-layout {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 70px);
+            padding: 24px;
+        }
+    </style>
+</head>
+
+<body class="page-root">
+    <header class="site-header header-bg">
+        <div class="header-inner" style="justify-content: center;">
+            <div class="brand-block">
+                <img src="/assets/logo.png" alt="BlackWeave Design" class="brand-mark"
+                    onerror="this.style.display='none'" />
+                <div class="brand-copy">
+                    <span class="brand-name serif">BlackWeave Design</span>
+                    <span class="brand-tagline">Pro-grade AI Apparel Design.</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="page-main waitlist-layout">
+        <div class="modal-panel" style="max-width: 460px; width: 100%; box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 class="serif modal-title" style="font-size: 2.2rem; margin-bottom: 8px;">Skip the Studio</h1>
+                <p class="modal-subcopy">
+                    Join the exclusive waitlist for our AI-powered design engine. Generate production-ready vector
+                    graphics in seconds, without Adobe or agency fees.
+                </p>
+            </div>
+
+            <form id="waitlist-form" class="auth-form">
+                <div class="field">
+                    <label for="waitlist-email">Work Email</label>
+                    <input id="waitlist-email" type="email" autocomplete="email" required
+                        placeholder="founder@brand.com" />
+                </div>
+
+                <div class="field">
+                    <label for="survey-pain">Biggest design bottleneck?</label>
+                    <select id="survey-pain" required>
+                        <option value="" disabled selected>Select your main challenge</option>
+                        <option value="time">Iterating takes too much time</option>
+                        <option value="cost">Freelancers/agencies are too expensive</option>
+                        <option value="skill">Lack of technical skills (Ai/CLO3D)</option>
+                        <option value="inspiration">Blank canvas syndrome / Lack of ideas</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="survey-workflow">Current workflow?</label>
+                    <select id="survey-workflow" required>
+                        <option value="" disabled selected>How do you design today?</option>
+                        <option value="adobe">Adobe Creative Suite (Ai, Ps)</option>
+                        <option value="canva">Canva / Basic Tools</option>
+                        <option value="outsource">Outsource to Designers</option>
+                        <option value="none">I don't design yet</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="survey-frequency">Design frequency?</label>
+                    <select id="survey-frequency" required>
+                        <option value="" disabled selected>How often do you need new designs?</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">A few times a year</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="waitlist-btn" class="btn-primary btn-block" style="margin-top: 12px;">
+                    <span id="waitlist-loader" class="btn-loader hidden"></span>
+                    <span class="btn-primary-text">Request Early Access</span>
+                </button>
+
+                <div id="waitlist-success" class="hidden"
+                    style="margin-top: 16px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; text-align: center;">
+                    <h4 style="color: #166534; margin: 0 0 4px; font-weight: 600; font-size: 0.95rem;">You're on the
+                        list.</h4>
+                    <p style="color: #15803d; margin: 0; font-size: 0.85rem;">Keep an eye on your inbox for your access
+                        link.</p>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('waitlist-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('waitlist-btn');
+            const loader = document.getElementById('waitlist-loader');
+            const text = btn.querySelector('.btn-primary-text');
+            const successMsg = document.getElementById('waitlist-success');
+
+            // Collect survey data
+            const payload = {
+                email: document.getElementById('waitlist-email').value,
+                pain_point: document.getElementById('survey-pain').value,
+                workflow: document.getElementById('survey-workflow').value,
+                frequency: document.getElementById('survey-frequency').value,
+                source: 'waitlist_landing_v1'
+            };
+
+            // UI: loading state
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+            text.textContent = 'Submitting...';
+
+            try {
+                const response = await fetch('/api/waitlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Submission failed');
+                }
+
+                // Show success banner
+                Array.from(document.querySelectorAll('.field')).forEach(f => f.classList.add('hidden'));
+                btn.classList.add('hidden');
+                successMsg.classList.remove('hidden');
+
+                // Redirect to the designer after a short celebratory pause
+                setTimeout(() => {
+                    window.location.href = '/designer';
+                }, 1800);
+
+            } catch (error) {
+                console.error('Waitlist error:', error);
+                alert(error.message || 'Something went wrong. Please try again.');
+                btn.disabled = false;
+                loader.classList.add('hidden');
+                text.textContent = 'Request Early Access';
+            }
+        });
+    </script>
+</body>
+
+</html>
