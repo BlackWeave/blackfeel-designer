@@ -1,32 +1,33 @@
-import axios from 'axios';
-import FormData from 'form-data';
-
 export const removeBgService = {
     async process(base64String) {
         try {
-            console.log('✂️ Removing background...');
-            // Clean the base64 string
-            const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "");
-            const buffer = Buffer.from(base64Data, 'base64');
+            console.log('🐍 Sending image to Python rembg microservice...');
 
-            const formData = new FormData();
-            formData.append('image_file', buffer, { filename: 'design.png' });
-            formData.append('size', 'auto');
-
-            const response = await axios.post('https://api.remove.bg/v1.0/removebg', formData, {
+            const response = await fetch('http://127.0.0.1:5001/remove-bg', {
+                method: 'POST',
                 headers: {
-                    ...formData.getHeaders(),
-                    'X-Api-Key': process.env.REMOVE_BG_API_KEY // Add this to your .env
+                    'Content-Type': 'application/json'
                 },
-                responseType: 'arraybuffer'
+                body: JSON.stringify({ image: base64String })
             });
 
-            // Convert back to base64 so imageStorage can handle it as usual
-            return `data:image/png;base64,${Buffer.from(response.data).toString('base64')}`;
+            if (!response.ok) {
+                throw new Error(`Python service responded with status ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            console.log('✅ Received clean image from Python!');
+            return data.image;
+
         } catch (error) {
-            console.error('Background removal failed:', error.response?.data?.toString() || error.message);
+            console.error('⚠️ Python background removal failed:', error.message);
             // Fallback: return original image if removal fails so the app doesn't crash
-            return base64String; 
+            return base64String;
         }
     }
 };
