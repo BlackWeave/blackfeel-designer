@@ -625,8 +625,13 @@ function renderOrders(orders) {
 
         const statusLabel = order.status.replace('_', ' ').toUpperCase();
 
-        // Use combined mockup if available, else fall back to front finalized/processed
-        let displayImageUrl = order.combined_mockup_url || order.front_finalized_image_url || order.front_processed_image_url;
+        // Use finalized_image_url (full mockup with t-shirt) first, fallback to processed_image_url
+        let displayImageUrl = order.finalized_image_url || order.processed_image_url;
+        
+        // Debug logging
+        console.log(`Order ${order.id}: finalized=${order.finalized_image_url ? '✓' : 'null'}, processed=${order.processed_image_url ? '✓' : 'null'}, using=${displayImageUrl ? 'finalized' : 'none'}`);
+
+        // Ensure URL is valid and absolute
         if (displayImageUrl && !displayImageUrl.startsWith('http')) {
             displayImageUrl = displayImageUrl.startsWith('/') ? displayImageUrl : `/${displayImageUrl}`;
         }

@@ -247,17 +247,10 @@ export const db = {
                 o.tshirt_size,
                 o.tshirt_quantity,
                 o.created_at,
-                o.combined_mockup_url,
-                o.design_id_front,
-                o.design_id_back,
-                d_front.processed_image_url AS front_processed_image_url,
-                d_front.finalized_image_url AS front_finalized_image_url,
-                d_front.tshirt_color AS front_tshirt_color,
-                d_front.prompt AS front_prompt,
-                d_back.processed_image_url AS back_processed_image_url,
-                d_back.finalized_image_url AS back_finalized_image_url,
-                d_back.tshirt_color AS back_tshirt_color,
-                d_back.prompt AS back_prompt
+                d.processed_image_url,
+                d.finalized_image_url,
+                d.tshirt_color,
+                d.prompt
              FROM orders o
              LEFT JOIN designs d_front ON o.design_id_front = d_front.id
              LEFT JOIN designs d_back ON o.design_id_back = d_back.id
@@ -265,6 +258,12 @@ export const db = {
              ORDER BY o.created_at DESC`,
             [userId]
         );
+        
+        // Debug: Log image URLs for each order
+        result.rows.forEach((order, idx) => {
+            console.log(`Order ${idx + 1} (${order.id}): finalized_image_url=${order.finalized_image_url ? '✓' : 'NULL'}, processed_image_url=${order.processed_image_url ? '✓' : 'NULL'}`);
+        });
+        
         return result.rows;
     },
 
