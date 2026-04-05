@@ -117,6 +117,66 @@ router.post('/generate', authMiddleware, async (req, res) => {
     }
 });
 
+// Edit current design (Image-to-Image)
+router.post('/edit', authMiddleware, async (req, res) => {
+    try {
+        const { prompt, designId, tshirtColor = '#1a1a1a' } = req.body;
+
+        if (!prompt || !designId) {
+            return res.status(400).json({ error: 'Prompt and reference designId are required' });
+        }
+
+        const user = await db.getUserById(req.userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (user.generations_used >= 5) {
+            return res.status(403).json({ error: 'Daily limit reached' });
+        }
+
+        // 1. Fetch existing design
+        const existingDesign = await db.getDesignById(designId, req.userId);
+        if (!existingDesign) {
+            return res.status(404).json({ error: 'Reference design not found' });
+        }
+
+        // 2. Download existing image as base64
+        console.log(`📥 Fetching reference image: ${existingDesign.processed_image_url}`);
+        const referenceBase64 = await imageStorage.downloadAsBase64(existingDesign.processed_image_url);
+
+        // 3. Generate edited image via Vertex AI
+        console.log('✨ Editing image with Gemini 3.1 via Vertex AI...');
+        const base64DataUrl = await vertexAiService.editImage(prompt, referenceBase64);
+
+        // 4. Remove background for the new interactive decal
+        const transparentBase64 = await removeBgService.process(base64DataUrl);
+
+        // 5. Upload to Cloudflare R2
+        console.log('☁️ Uploading edited design to Cloudflare R2...');
+        const uploadedUrl = await imageStorage.uploadBase64(transparentBase64, 'designs');
+
+        // 6. Store new design in DB
+        const newDesign = await db.createDesign(
+            req.userId,
+            prompt, // Store the edit prompt
+            uploadedUrl,
+            uploadedUrl,
+            tshirtColor
+        );
+
+        await db.updateUserGenerationCount(req.userId);
+        const updatedUser = await db.getUserById(req.userId);
+
+        res.json({
+            success: true,
+            designId: newDesign.id,
+            imageUrl: uploadedUrl,
+            generationsLeft: 5 - updatedUser.generations_used
+        });
+    } catch (error) {
+        console.error('Edit error:', error);
+        res.status(500).json({ error: 'Edit failed: ' + error.message });
+    }
+});
+
 // Save curated design directly bypassing generation
 router.post('/curated', authMiddleware, async (req, res) => {
     try {
