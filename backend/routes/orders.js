@@ -8,29 +8,43 @@ const router = express.Router();
 // Quick buy-now endpoint (simplified checkout)
 router.post('/buy-now', authMiddleware, async (req, res) => {
     try {
-        const { designId, tshirtSize, quantity = 1, customText } = req.body;
+        const { designIdFront, designIdBack, tshirtSize, quantity = 1, customText, combinedMockupUrl } = req.body;
 
-        if (!designId) {
-            return res.status(400).json({ error: 'Design ID is required' });
+        if (!designIdFront && !designIdBack) {
+            return res.status(400).json({ error: 'At least one design (front or back) is required' });
         }
 
-        // Verify design belongs to user and is finalized
-        const design = await db.getDesignById(designId, req.userId);
-        if (!design) {
-            return res.status(404).json({ error: 'Design not found' });
+        // Verify front design belongs to user and is finalized
+        if (designIdFront) {
+            const frontDesign = await db.getDesignById(designIdFront, req.userId);
+            if (!frontDesign) {
+                return res.status(404).json({ error: 'Front design not found' });
+            }
+            if (!frontDesign.is_finalized) {
+                return res.status(400).json({ error: 'Front design must be finalized before purchase' });
+            }
         }
 
-        if (!design.is_finalized) {
-            return res.status(400).json({ error: 'Design must be finalized before purchase' });
+        // Verify back design belongs to user and is finalized
+        if (designIdBack) {
+            const backDesign = await db.getDesignById(designIdBack, req.userId);
+            if (!backDesign) {
+                return res.status(404).json({ error: 'Back design not found' });
+            }
+            if (!backDesign.is_finalized) {
+                return res.status(400).json({ error: 'Back design must be finalized before purchase' });
+            }
         }
 
-        // Create order
+        // Create order with both design IDs
         const order = await db.createOrder(
             req.userId,
-            designId,
+            designIdFront || null,
+            designIdBack || null,
             tshirtSize,
             quantity,
-            customText
+            customText,
+            combinedMockupUrl || null
         );
 
         res.json({
@@ -48,28 +62,37 @@ router.post('/buy-now', authMiddleware, async (req, res) => {
 // Create order (before payment)
 router.post('/create', authMiddleware, async (req, res) => {
     try {
-        const { designId, tshirtSize, quantity = 1, customText } = req.body;
+        const { designIdFront, designIdBack, tshirtSize, quantity = 1, customText, combinedMockupUrl } = req.body;
 
-        if (!designId) {
-            return res.status(400).json({ error: 'Design ID is required' });
+        if (!designIdFront && !designIdBack) {
+            return res.status(400).json({ error: 'At least one design is required' });
         }
 
-        // Verify design belongs to user
-        const design = await db.getDesignById(designId, req.userId);
-        if (!design || !design.is_finalized) {
-            return res.status(400).json({ error: 'Design not finalized' });
+        // Verify front design
+        if (designIdFront) {
+            const frontDesign = await db.getDesignById(designIdFront, req.userId);
+            if (!frontDesign || !frontDesign.is_finalized) {
+                return res.status(400).json({ error: 'Front design not finalized' });
+            }
         }
 
-        // Get user
-        const user = await db.getUserById(req.userId);
+        // Verify back design
+        if (designIdBack) {
+            const backDesign = await db.getDesignById(designIdBack, req.userId);
+            if (!backDesign || !backDesign.is_finalized) {
+                return res.status(400).json({ error: 'Back design not finalized' });
+            }
+        }
 
         // Create order
         const order = await db.createOrder(
             req.userId,
-            designId,
+            designIdFront || null,
+            designIdBack || null,
             tshirtSize,
             quantity,
-            customText
+            customText,
+            combinedMockupUrl || null
         );
 
         res.json({

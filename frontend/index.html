@@ -1,168 +1,292 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LUXE | AI T-Shirt Studio</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <meta charset="UTF-8" />
+  <title>March Studio – Custom Tee Designer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body class="h-screen w-screen flex flex-col bg-[#0a0a0a] text-[#e5e5e5] font-['Inter',sans-serif] overflow-hidden">
 
-    <div id="auth-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-[#1a1a1a] border border-white/10 rounded-xl w-full max-w-md p-8">
-            <div class="text-center mb-8">
-                <div class="w-12 h-12 bg-gradient-to-tr from-yellow-700 to-yellow-500 rounded-sm mx-auto mb-4"></div>
-                <h1 class="text-2xl tracking-widest text-white">LUXE<span class="text-yellow-600">.AI</span></h1>
-                <p class="text-gray-500 text-sm mt-2">Premium T-Shirt Design Studio</p>
-            </div>
-
-            <div id="login-form">
-                <h2 class="text-xl font-semibold mb-4">Sign In</h2>
-                <input type="email" id="login-email" placeholder="Email" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 mb-3 text-white placeholder-gray-600 focus:border-yellow-600 focus:outline-none transition">
-                <input type="password" id="login-password" placeholder="Password" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 mb-4 text-white placeholder-gray-600 focus:border-yellow-600 focus:outline-none transition">
-                <button id="login-btn" class="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-semibold py-3 rounded-lg transition">Sign In</button>
-                <p class="text-center text-gray-500 text-sm mt-4">
-                    New here? <button id="show-register-btn" class="text-yellow-600 hover:underline">Create Account</button>
-                </p>
-            </div>
-
-            <div id="register-form" class="hidden">
-                <h2 class="text-xl font-semibold mb-4">Create Account</h2>
-                <input type="text" id="register-name" placeholder="Full Name" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 mb-3 text-white placeholder-gray-600 focus:border-yellow-600 focus:outline-none transition">
-                <input type="email" id="register-email" placeholder="Email" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 mb-3 text-white placeholder-gray-600 focus:border-yellow-600 focus:outline-none transition">
-                <input type="password" id="register-password" placeholder="Password (min 6 chars)" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 mb-4 text-white placeholder-gray-600 focus:border-yellow-600 focus:outline-none transition">
-                <button id="register-btn" class="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-semibold py-3 rounded-lg transition">Create Account</button>
-                <p class="text-center text-gray-500 text-sm mt-4">
-                    Already have an account? <button id="show-login-btn" class="text-yellow-600 hover:underline">Sign In</button>
-                </p>
-            </div>
-            <div id="auth-error" class="text-red-500 text-sm text-center mt-4 hidden"></div>
+<body class="page-root">
+  <header class="site-header header-bg">
+    <div class="header-inner">
+      <div class="brand-block">
+        <img src="assets/logo.png" alt="BlackWeave Design" class="brand-mark" />
+        <div class="brand-copy">
+          <span class="brand-name serif">BlackWeave Design</span>
+          <span class="brand-tagline">Fortune Favours the Bold.</span>
         </div>
+      </div>
+
+      <nav class="nav-main">
+        <button id="archives-btn" class="nav-link archives-btn">
+          <span>Design Archives</span>
+        </button>
+        <button id="my-orders-btn" class="nav-link">
+          My Orders
+        </button>
+        <button id="logout-btn" class="nav-link nav-link-subtle hidden">
+          Log out
+        </button>
+      </nav>
     </div>
+  </header>
 
-    <header class="h-16 shrink-0 border-b border-white/10 flex items-center justify-between px-4 md:px-8 z-50 header-bg">
-        <div class="flex items-center gap-3">
-            <div class="w-6 h-6 md:w-8 md:h-8 bg-gradient-to-tr from-yellow-700 to-yellow-500 rounded-sm"></div>
-            <h1 class="text-xl md:text-2xl tracking-widest text-white serif">LUXE<span class="text-yellow-600">.AI</span></h1>
+  <main class="page-main">
+    <section class="canvas-section grid-bg">
+      <div class="canvas-inner">
+        <div class="canvas-copy">
+          <h1 class="serif hero-heading">
+            Design a tee that feels like Sunday.
+          </h1>
+          <p class="hero-subcopy">
+            Start with our classic crew silhouette and add a design that feels
+            just as considered as your favourite March tee.
+          </p>
+
+          <div class="prompt-shell">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="prompt-input" class="prompt-label" style="margin-bottom: 0;">
+                Describe your design
+              </label>
+              <button id="inspiration-btn" class="btn-inspiration">
+                <span style="font-size: 0.9rem;">✨</span>
+                <span>NEED INSPIRATION?</span>
+              </button>
+            </div>
+            <div class="prompt-row">
+              <textarea id="prompt-input" rows="3"
+                placeholder="Eg. A soft line-drawing of a coffee mug in warm brown ink"></textarea>
+              <button id="generate-btn" class="btn-primary">
+                <span id="btn-loader" class="btn-loader hidden"></span>
+                <span class="btn-primary-text">Generate</span>
+              </button>
+            </div>
+            <div id="rate-limit-display" class="prompt-meta"></div>
+          </div>
+
+          <div class="color-palette">
+            <span class="palette-label">Tee colour</span>
+            <button class="color-btn is-active" data-src="assets/white-tshirt.png" aria-label="Pure White"></button>
+            <button class="color-btn" data-src="assets/black-tshirt.png" aria-label="Classic Black"></button>
+            <button class="color-btn" data-src="assets/blue-tshirt.png" aria-label="Sky"></button>
+            <button class="color-btn" data-src="assets/red-tshirt.png" aria-label="Rust"></button>
+          </div>
+
+          <button id="buy-now-btn" class="btn-secondary hidden">
+            Buy this tee
+          </button>
         </div>
-        <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-4">
-            <div class="text-[10px] md:text-xs text-gray-500 uppercase tracking-widest">
-                Generations: <span id="rate-limit-display" class="text-white font-bold">5</span> Left
+
+        <div class="canvas-visual">
+          <div class="side-toggle">
+            <button id="toggle-front" class="side-toggle-btn is-active" data-side="front">Front</button>
+            <button id="toggle-back" class="side-toggle-btn" data-side="back">Back</button>
+          </div>
+          <div id="design-wrapper" class="tshirt-shell">
+            <img id="tshirt-base-img" class="tshirt-base" src="assets/white-tshirt.png" alt="T-shirt base" />
+            <div id="generated-image-container" class="design-container hidden">
+              <img id="generated-image" src="" alt="Design" crossorigin="anonymous"
+                style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;" />
+              <button id="remove-design-btn" class="remove-design-btn" aria-label="Remove design"
+                title="Remove design">×</button>
+              <div class="resize-handle" id="resize-handle"></div>
             </div>
+          </div>
+          <p class="canvas-footnote">
+            Classic crew fit. 100% cotton base. Your design printed once you order.
+          </p>
         </div>
-        <div class="flex items-center gap-4">
-            <button id="my-orders-btn" class="text-[10px] md:text-xs text-gray-400 hover:text-white transition uppercase tracking-widest">My Orders</button>
-            <button id="logout-btn" class="text-[10px] md:text-xs text-gray-400 hover:text-white transition uppercase tracking-widest hidden">Logout</button>
-        </div>
-    </header>
+      </div>
+    </section>
+  </main>
 
-    <main class="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-
-        <section class="w-full h-[55vh] md:h-full md:flex-1 relative bg-[#0f0f0f] flex items-center justify-center overflow-hidden shrink-0 min-h-0">
-            <div class="absolute inset-0 opacity-10 grid-bg"></div>
-
-            <div class="relative w-full max-w-[400px] md:max-w-[500px] aspect-[5/6] max-h-full p-4 flex items-center justify-center transition-all duration-500">
-                <img id="tshirt-base-img" src="assets/black-tshirt.png" alt="T-Shirt Canvas" class="w-full h-full object-contain tshirt-base pointer-events-none drop-shadow-2xl">
-
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div id="design-wrapper" class="design-container pointer-events-auto relative hidden w-[120px] h-[120px] md:w-[200px] md:h-[200px]">
-                        <img id="generated-image" crossorigin="anonymous" src="" alt="Design" class="w-full h-full object-contain pointer-events-none select-none" draggable="false">
-                        <div class="resize-handle" id="resize-handle"></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <aside class="w-full md:w-[400px] border-t md:border-t-0 md:border-l border-white/10 flex flex-col z-40 sidebar-bg shrink-0 h-full">
-
-            <!-- Select Color -->
-            <div class="p-4 md:p-6 border-b border-white/10 shrink-0">
-                <h2 class="text-xs md:text-sm uppercase tracking-widest text-gray-400 mb-4 serif">Select Color</h2>
-                <div class="flex gap-4">
-                    <button data-src="assets/black-tshirt.png" class="color-btn w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#1a1a1a] border border-white/20 hover:scale-110 transition-transform ring-2 ring-transparent focus:ring-yellow-600" title="Midnight Black"></button>
-                    <button data-src="assets/white-tshirt.png" class="color-btn w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#f5f5f5] border border-white/20 hover:scale-110 transition-transform ring-2 ring-transparent focus:ring-yellow-600" title="Pure White"></button>
-                    <button data-src="assets/blue-tshirt.png" class="color-btn w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#1e3a8a] border border-white/20 hover:scale-110 transition-transform ring-2 ring-transparent focus:ring-yellow-600" title="Navy Royal"></button>
-                    <button data-src="assets/red-tshirt.png" class="color-btn w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#7f1d1d] border border-white/20 hover:scale-110 transition-transform ring-2 ring-transparent focus:ring-yellow-600" title="Crimson Red"></button>
-                </div>
-            </div>
-
-            <!-- Design Prompt & Action Buttons -->
-            <div class="p-4 md:p-6 flex flex-col gap-4 shrink-0">
-                <h2 class="text-xs md:text-sm uppercase tracking-widest text-gray-400 serif">Design Prompt</h2>
-                <textarea id="prompt-input" class="w-full bg-[#111] border border-white/10 rounded p-4 text-sm md:text-base text-white placeholder-gray-600 focus:outline-none focus:border-yellow-600 transition-colors resize-none h-20 md:h-28" placeholder="Describe your vision..."></textarea>
-
-                <button id="generate-btn" class="w-full py-3 md:py-4 bg-white text-black text-sm md:text-base font-medium tracking-widest uppercase hover:bg-yellow-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                    <span>Generate Design</span>
-                    <div id="btn-loader" class="loader hidden"></div>
-                </button>
-
-                <button id="buy-now-btn" class="w-full py-3 md:py-4 bg-yellow-600 text-black text-sm md:text-base font-medium tracking-widest uppercase hover:bg-yellow-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hidden">
-                    <span>BUY NOW - ₹499</span>
-                </button>
-            </div>
-
-            <!-- Design Archives - Text Button at bottom -->
-            <div class="flex-1 flex flex-col justify-center p-4 md:p-6 border-t border-white/10 shrink-0">
-                <button id="archives-btn" class="archives-btn w-full text-center -mt-5">
-                    <span class="text-xs md:text-sm uppercase tracking-widest text-gray-400 serif">Design Archives</span>
-                </button>
-            </div>
-        </aside>
-    </main>
-
-    <!-- Archives Modal Popup -->
-    <div id="archives-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] hidden flex items-end md:items-center justify-center md:p-4">
-        <div class="bg-[#111] border border-white/10 rounded-t-xl md:rounded-xl w-full max-w-lg overflow-hidden flex flex-col md:max-h-[400px]">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center">
-                <h3 class="serif text-xl text-white">Design Archives</h3>
-                <button id="close-archives-btn" class="text-gray-400 hover:text-white transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Grid Container: 3 cols, scrollable -->
-            <div id="archives-grid" class="grid grid-cols-3 gap-3 p-4 overflow-y-auto max-h-[280px] md:max-h-[280px]">
-                <!-- History items injected here -->
-            </div>
-
-            <div id="empty-archives" class="p-8 text-center text-gray-500 text-sm hidden">
-                No designs generated yet.
-            </div>
-        </div>
+  <div id="archives-modal" class="modal-root hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 class="serif modal-title">Design archives</h2>
+        <button id="close-archives-btn" class="icon-button" aria-label="Close">
+          ✕
+        </button>
+      </div>
+      <p class="modal-subcopy">
+        Revisit designs you’ve already explored. Tap one to bring it back
+        onto the canvas.
+      </p>
+      <div id="empty-archives" class="empty-state hidden">
+        You haven’t saved any designs yet.
+      </div>
+      <div id="archives-grid" class="archives-grid">
+      </div>
     </div>
+  </div>
 
-    <!-- My Orders Modal -->
-    <div id="orders-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[200] hidden flex items-end md:items-center justify-center md:p-4">
-        <div class="bg-[#111] border border-white/10 rounded-t-xl md:rounded-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center">
-                <h3 class="serif text-xl text-white">My Orders</h3>
-                <button id="close-orders-btn" class="text-gray-400 hover:text-white transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <div id="orders-list" class="p-4 overflow-y-auto space-y-4">
-                <!-- Orders injected here -->
-            </div>
-
-            <div id="empty-orders" class="p-12 text-center text-gray-500 text-sm hidden">
-                <p class="mb-4">No orders placed yet.</p>
-                <button id="shop-now-btn" class="text-yellow-600 hover:underline uppercase tracking-widest text-xs">Start Designing</button>
-            </div>
-        </div>
+  <div id="orders-modal" class="modal-root hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 class="serif modal-title">Your orders</h2>
+        <button id="close-orders-btn" class="icon-button" aria-label="Close">
+          ✕
+        </button>
+      </div>
+      <p class="modal-subcopy">
+        Track the tees you’ve already created and ordered.
+      </p>
+      <div id="empty-orders" class="empty-state hidden">
+        You haven’t ordered a tee yet.
+      </div>
+      <div id="orders-list" class="orders-list">
+      </div>
+      <button id="shop-now-btn" class="btn-secondary">
+        Start a new tee
+      </button>
     </div>
+  </div>
 
-    <script src="app.js"></script>
+  <div id="auth-modal" class="modal-root hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel auth-panel">
+      <div class="modal-header">
+        <h2 class="serif modal-title">Sign in to save</h2>
+        <button id="close-auth-btn" class="icon-button hidden" aria-label="Close">
+          ✕
+        </button>
+      </div>
+
+      <p class="modal-subcopy">
+        Create an account to keep your designs, track orders and
+        return to them anytime.
+      </p>
+
+      <div id="g_id_onload" data-client_id="401987496055-d9cc1n13dp3ilvi9nisucrne76u4e9qe.apps.googleusercontent.com"
+        data-context="use" data-ux_mode="popup" data-callback="handleGoogleCallback" data-auto_prompt="false">
+      </div>
+
+      <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+        data-text="continue_with" data-size="large" data-logo_alignment="left"
+        style="display: flex; justify-content: center; margin-top: 16px;">
+      </div>
+
+      <div style="display: flex; align-items: center; margin: 16px 0;">
+        <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+        <div style="padding: 0 12px; color: #9ca3af; font-size: 0.8rem; text-transform: uppercase;">or</div>
+        <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+      </div>
+
+      <form id="login-form" class="auth-form">
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" type="email" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" autocomplete="current-password" />
+        </div>
+        <div id="auth-error" class="auth-error hidden"></div>
+        <button type="button" id="login-btn" class="btn-primary btn-block">
+          Log in
+        </button>
+        <p class="auth-toggle">
+          New here?
+          <button type="button" id="show-register-btn" class="link-button">
+            Create an account
+          </button>
+        </p>
+      </form>
+
+      <form id="register-form" class="auth-form hidden">
+        <div class="field">
+          <label for="register-name">Name</label>
+          <input id="register-name" type="text" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="register-email">Email</label>
+          <input id="register-email" type="email" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="register-password">Password</label>
+          <input id="register-password" type="password" autocomplete="new-password" />
+        </div>
+        <div id="auth-error-register" class="auth-error hidden"></div>
+        <button type="button" id="register-btn" class="btn-primary btn-block">
+          Create account
+        </button>
+        <p class="auth-toggle">
+          Already have an account?
+          <button type="button" id="show-login-btn" class="link-button">
+            Log in instead
+          </button>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <div id="inspiration-modal" class="modal-root hidden">
+    <!-- Navigation Arrows (Floating) -->
+    <button id="inspiration-prev-btn" class="inspiration-nav-btn inspiration-nav-left">
+      <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+    <button id="inspiration-next-btn" class="inspiration-nav-btn inspiration-nav-right">
+      <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+
+    <!-- Main Modal Content -->
+    <div class="modal-panel inspiration-modal-panel">
+      <button id="close-inspiration-btn" class="inspiration-close-btn">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+
+      <!-- Image Container -->
+      <div class="inspiration-image-container">
+        <div class="inspiration-image-wrapper">
+          <img id="inspiration-main-image" class="inspiration-main-image" src="" alt="Inspiration" />
+          <div class="inspiration-image-gradient"></div>
+        </div>
+      </div>
+
+      <!-- Content Area -->
+      <div class="inspiration-content-area">
+        <div class="inspiration-header">
+          <h2 class="inspiration-title">Inspiration Gallery</h2>
+          <p class="inspiration-subtitle">Discover and apply curated prompts.</p>
+        </div>
+
+        <!-- Quote Section -->
+        <div class="inspiration-quote-wrapper">
+          <p id="inspiration-quote" class="inspiration-quote"></p>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="inspiration-cta-section">
+          <button id="use-prompt-btn" class="inspiration-use-btn">
+            <span class="material-symbols-outlined filled">add</span>
+            <span>Use this Prompt</span>
+          </button>
+
+          <!-- Pagination -->
+          <div id="inspiration-pagination" class="inspiration-pagination"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="app.js"></script>
 </body>
+
 </html>

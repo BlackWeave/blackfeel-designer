@@ -1,10 +1,61 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
+import { OAuth2Client } from 'google-auth-library';
+import crypto from 'crypto';
 import { db } from '../models/database.js';
 import { generateToken, authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Google OAuth Login/Register
+router.post('/google', async (req, res) => {
+    try {
+        const { credential } = req.body;
+        
+        // Verify Google token
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+        
+        const payload = ticket.getPayload();
+        const email = payload.email;
+        const name = payload.name;
+
+        // Check if user exists
+        let user = await db.getUserByEmail(email);
+
+        if (!user) {
+            // Generate a secure random password for OAuth users since they don't provide one
+            const randomPassword = crypto.randomBytes(16).toString('hex');
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
+            user = await db.createUser(email, hashedPassword, name);
+        }
+
+        // Reset daily limit if it's a new day
+        await db.resetUserDailyLimit(user.id);
+        const updatedUser = await db.getUserById(user.id);
+
+        // Generate our app's JWT token
+        const token = generateToken(updatedUser.id, updatedUser.email);
+
+        res.json({
+            token,
+            user: {
+                id: updatedUser.id,
+                email: updatedUser.email,
+                name: updatedUser.name,
+                generationsUsed: updatedUser.generations_used,
+                isFinalized: updatedUser.is_finalized
+            }
+        });
+    } catch (error) {
+        console.error('Google Auth Error:', error);
+        res.status(401).json({ error: 'Google Authentication failed. Please try again.' });
+    }
+});
 
 // Register
 router.post('/register', [

@@ -100,7 +100,7 @@ export const db = {
     },
 
     // Orders
-    async createOrder(userId, designId, tshirtSize, quantity, customText) {
+    async createOrder(userId, designIdFront, designIdBack, tshirtSize, quantity, customText, combinedMockupUrl) {
         // Pricing: Base ₹499, +₹299 per size tier, +₹100 custom text
         let basePrice = 49900; // ₹499 in paise
         if (tshirtSize && ['L', 'XL', 'XXL'].includes(tshirtSize)) basePrice += 29900;
@@ -108,10 +108,10 @@ export const db = {
         const totalPrice = basePrice * quantity;
 
         const result = await pool.query(
-            `INSERT INTO orders (id, user_id, design_id, amount_in_paise, tshirt_size, tshirt_quantity, custom_text, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+            `INSERT INTO orders (id, user_id, design_id_front, design_id_back, amount_in_paise, tshirt_size, tshirt_quantity, custom_text, combined_mockup_url, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
              RETURNING id, amount_in_paise, status`,
-            [uuid(), userId, designId, totalPrice, tshirtSize, quantity, customText]
+            [uuid(), userId, designIdFront || null, designIdBack || null, totalPrice, tshirtSize, quantity, customText, combinedMockupUrl || null]
         );
         return result.rows[0];
     },
@@ -181,39 +181,55 @@ export const db = {
         return result.rows.length > 0;
     },
 
-    // Add to the 'db' object in backend/models/database.js
-async createFulfillmentJob(orderId) {
-    // 1. Fetch full details of the paid order
-    // Note: processed_image_url is the transparent design (after bg removal)
-    // finalized_image_url is the baked composite (t-shirt + design)
-    const orderQuery = `
-        SELECT o.id as order_id, o.tshirt_size, d.id as design_id,
-               d.tshirt_color, d.finalized_image_url, d.processed_image_url
+    async createFulfillmentJob(orderId) {
+        // Fetch full details including both front and back designs
+        const orderQuery = `
+        SELECT o.id as order_id, o.tshirt_size, o.combined_mockup_url,
+               d_front.id as design_id_front, d_front.tshirt_color as front_tshirt_color,
+               d_front.finalized_image_url as front_finalized_url,
+               d_front.processed_image_url as front_processed_url,
+               d_back.id as design_id_back, d_back.tshirt_color as back_tshirt_color,
+               d_back.processed_image_url as back_processed_url
         FROM orders o
-        JOIN designs d ON o.design_id = d.id
+        LEFT JOIN designs d_front ON o.design_id_front = d_front.id
+        LEFT JOIN designs d_back ON o.design_id_back = d_back.id
         WHERE o.id = $1
     `;
-    const orderRes = await pool.query(orderQuery, [orderId]);
-    const details = orderRes.rows[0];
+        const orderRes = await pool.query(orderQuery, [orderId]);
+        const details = orderRes.rows[0];
 
-    // 2. Insert into the Fulfillment Queue
-    // raw_design_url = transparent PNG (processed_image_url) for printer
-    // print_mockup_url = baked composite (finalized_image_url) for reference
-    return await pool.query(
-        `INSERT INTO fulfillment_queue
-         (order_id, design_id, tshirt_color, tshirt_size, print_mockup_url, raw_design_url)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        // print_mockup_url = combined mockup or front finalized image or back processed
+        // raw_design_url_front = transparent front design for printer
+        // raw_design_url_back = transparent back design for printer
+        // Use front design_id if available, otherwise use back design_id
+        const designId = details.design_id_front || details.design_id_back;
+        // Use front tshirt_color if available, otherwise use back
+        const tshirtColor = details.front_tshirt_color || details.back_tshirt_color;
+
+        return await pool.query(
+            `INSERT INTO fulfillment_queue
+         (order_id, design_id, tshirt_color, tshirt_size, print_mockup_url, raw_design_url_front, raw_design_url_back)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id`,
-        [
-            details.order_id,
-            details.design_id,
-            details.tshirt_color,
-            details.tshirt_size,
-            details.finalized_image_url,
-            details.processed_image_url  // This is the transparent design
-        ]
-    );
-},
+            [
+                details.order_id,
+                designId,
+                tshirtColor,
+                details.tshirt_size,
+                details.combined_mockup_url || details.front_finalized_url || details.back_processed_url,
+                details.front_processed_url || null,
+                details.back_processed_url || null
+            ]
+        );
+    },
+
+    async updateFulfillmentRawDesignUrl(orderId, rawDesignUrl, side = 'front') {
+        const column = side === 'back' ? 'raw_design_url_back' : 'raw_design_url_front';
+        return await pool.query(
+            `UPDATE fulfillment_queue SET ${column} = $1 WHERE order_id = $2`,
+            [rawDesignUrl, orderId]
+        );
+    },
 
     async markWebhookProcessed(razorpayEventId) {
         await pool.query(
@@ -236,7 +252,8 @@ async createFulfillmentJob(orderId) {
                 d.tshirt_color,
                 d.prompt
              FROM orders o
-             JOIN designs d ON o.design_id = d.id
+             LEFT JOIN designs d_front ON o.design_id_front = d_front.id
+             LEFT JOIN designs d_back ON o.design_id_back = d_back.id
              WHERE o.user_id = $1
              ORDER BY o.created_at DESC`,
             [userId]
@@ -248,5 +265,19 @@ async createFulfillmentJob(orderId) {
         });
         
         return result.rows;
+    },
+
+    async getOrderWithDesign(razorpayOrderId) {
+        const result = await pool.query(
+            `SELECT o.*, 
+                    d_front.processed_image_url as processed_image_url,
+                    d_back.processed_image_url as back_processed_image_url
+             FROM orders o 
+             LEFT JOIN designs d_front ON o.design_id_front = d_front.id 
+             LEFT JOIN designs d_back ON o.design_id_back = d_back.id
+             WHERE o.razorpay_order_id = $1`,
+            [razorpayOrderId]
+        );
+        return result.rows[0];
     }
 };
