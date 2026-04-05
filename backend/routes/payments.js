@@ -2,6 +2,8 @@ import express from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { db } from '../models/database.js';
 import { razorpayService } from '../services/razorpay.js';
+import { cloudinaryService } from '../services/cloudinary.js';
+import { imageStorage } from '../services/imageStorage.js';
 
 const router = express.Router();
 
@@ -25,8 +27,8 @@ router.post('/verify', authMiddleware, async (req, res) => {
             return res.status(400).json({ error: 'Invalid signature' });
         }
 
-        // Find order by Razorpay ID
-        const order_found = await db.getOrderByRazorpayId(razorpayOrderId);
+        // Use the NEW method to get the image URL
+        const order_found = await db.getOrderWithDesign(razorpayOrderId);
 
         if (!order_found || order_found.user_id !== req.userId) {
             return res.status(404).json({ error: 'Order not found' });
@@ -43,30 +45,67 @@ router.post('/verify', authMiddleware, async (req, res) => {
         }
 
         // Create payment record
-        const payment = await db.createPayment(
+        await db.createPayment(
             order_found.id,
             razorpayPaymentId,
             razorpaySignature,
             order_found.amount_in_paise
         );
 
-        // Update order status to paid
+        // ✨ TRIGGER 4K UPSCALING for front design
+        if (order_found.processed_image_url) {
+            console.log(`🚀 Upscaling FRONT design for Order ${order_found.id} to 4K...`);
+            try {
+                const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
+                    order_found.processed_image_url, 
+                    `${order_found.id}-front`
+                );
+                console.log(`✅ 4K Front Design generated on Cloudinary`);
+
+                const r2PublicUrlBase = process.env.CLOUDFLARE_R2_PUBLIC_URL;
+                const targetKey = `finals/${order_found.id}-front-4k-print.png`;
+                
+                const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
+                console.log(`✅ 4K Front Design stored in R2 at: ${highResR2Url}`);
+
+                await db.updateFulfillmentRawDesignUrl(order_found.id, highResR2Url, 'front');
+                console.log(`✅ DB updated with high-res front design for fulfillment`);
+
+            } catch (err) {
+                console.error("Front high-res upscaling failed, proceeding with order:", err.message);
+            }
+        }
+
+        // ✨ TRIGGER 4K UPSCALING for back design
+        if (order_found.back_processed_image_url) {
+            console.log(`🚀 Upscaling BACK design for Order ${order_found.id} to 4K...`);
+            try {
+                const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
+                    order_found.back_processed_image_url, 
+                    `${order_found.id}-back`
+                );
+                console.log(`✅ 4K Back Design generated on Cloudinary`);
+
+                const targetKey = `finals/${order_found.id}-back-4k-print.png`;
+                
+                const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
+                console.log(`✅ 4K Back Design stored in R2 at: ${highResR2Url}`);
+
+                await db.updateFulfillmentRawDesignUrl(order_found.id, highResR2Url, 'back');
+                console.log(`✅ DB updated with high-res back design for fulfillment`);
+
+            } catch (err) {
+                console.error("Back high-res upscaling failed, proceeding with order:", err.message);
+            }
+        }
+
         await db.updateOrderStatus(order_found.id, 'paid');
+        await db.createFulfillmentJob(order_found.id);
 
-    
-    // ✨ NEW: Automatically push to the production printer queue
-    console.log(`📦 Payment verified. Moving Order ${order_found.id} to Production Queue...`);
-    await db.createFulfillmentJob(order_found.id);
-
-        res.json({
-            success: true,
-            message: 'Payment verified successfully',
-            orderId: order_found.id,
-            paymentId: payment.id
-        });
+        res.json({ success: true, orderId: order_found.id });
     } catch (error) {
         console.error('Payment verification error:', error);
-        res.status(500).json({ error: 'Payment verification failed: ' + error.message });
+        res.status(500).json({ error: 'Payment verification failed' });
     }
 });
 
@@ -84,42 +123,78 @@ router.post('/webhook', async (req, res) => {
         const isNew = await db.recordWebhookEvent(razorpayEventId, event, payload);
 
         if (!isNew) {
-            // Already processed
             return res.json({ success: true });
         }
 
-        // Handle different event types
-// Handle different event types
-        if (event === 'payment.authorized') {
-            const { razorpay_payment_id, razorpay_order_id } = payload.payment;
+        if (event === 'payment.authorized' || event === 'payment.captured') {
+            const { id: razorpay_payment_id, order_id: razorpay_order_id } = payload.payment.entity;
 
-            const order = await db.getOrderByRazorpayId(razorpay_order_id);
+            // Use the NEW method for webhook as well
+            const order = await db.getOrderWithDesign(razorpay_order_id);
 
             if (order) {
-                const isValid = await razorpayService.verifySignature(
-                    razorpay_order_id,
-                    razorpay_payment_id,
-                    payload.payment.razorpay_signature
-                );
-
-                if (isValid) {
+                // Check if already paid to avoid duplicate processing
+                if (order.status !== 'paid') {
                     await db.createPayment(
                         order.id,
                         razorpay_payment_id,
-                        payload.payment.razorpay_signature,
+                        'WEBHOOK_VERIFIED', // Signature not always in webhook payload in same way
                         order.amount_in_paise
                     );
 
-                    // Update order status
                     await db.updateOrderStatus(order.id, 'paid');
-                    
-                    // FIX: Use 'order.id' instead of 'order_found.id'
+
+                    // ✨ TRIGGER 4K UPSCALING for Webhook - FRONT
+                    if (order.processed_image_url) {
+                        try {
+                            console.log(`🚀 Webhook: Upscaling FRONT design for Order ${order.id} to 4K...`);
+                            
+                            const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
+                                order.processed_image_url, 
+                                `${order.id}-front`
+                            );
+
+                            const targetKey = `finals/${order.id}-front-4k-print.png`;
+                            
+                            const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
+                            console.log(`✅ Webhook: 4K Front Design stored in R2 at: ${highResR2Url}`);
+
+                            await db.updateFulfillmentRawDesignUrl(order.id, highResR2Url, 'front');
+                            console.log(`✅ Webhook: DB updated with high-res front design`);
+
+                        } catch (uploadError) {
+                            console.error(`⚠️ Webhook: Failed to upscale front design for order ${order.id}:`, uploadError);
+                        }
+                    }
+
+                    // ✨ TRIGGER 4K UPSCALING for Webhook - BACK
+                    if (order.back_processed_image_url) {
+                        try {
+                            console.log(`🚀 Webhook: Upscaling BACK design for Order ${order.id} to 4K...`);
+                            
+                            const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
+                                order.back_processed_image_url, 
+                                `${order.id}-back`
+                            );
+
+                            const targetKey = `finals/${order.id}-back-4k-print.png`;
+                            
+                            const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
+                            console.log(`✅ Webhook: 4K Back Design stored in R2 at: ${highResR2Url}`);
+
+                            await db.updateFulfillmentRawDesignUrl(order.id, highResR2Url, 'back');
+                            console.log(`✅ Webhook: DB updated with high-res back design`);
+
+                        } catch (uploadError) {
+                            console.error(`⚠️ Webhook: Failed to upscale back design for order ${order.id}:`, uploadError);
+                        }
+                    }
+
                     console.log(`📦 Webhook verified. Moving Order ${order.id} to Production Queue...`);
                     await db.createFulfillmentJob(order.id);
                 }
             }
         }
-        
 
         // Mark as processed
         await db.markWebhookProcessed(razorpayEventId);

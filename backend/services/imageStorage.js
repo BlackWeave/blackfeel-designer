@@ -96,5 +96,28 @@ export const imageStorage = {
             console.error('Buffer upload error:', error.message);
             throw new Error('Failed to upload buffer: ' + error.message);
         }
+    },
+
+    async downloadAndUploadToR2(url, targetKey) {
+        try {
+            const response = await axios.get(url, { responseType: 'arraybuffer' });
+            const buffer = Buffer.from(response.data);
+
+            await s3Client.send(new PutObjectCommand({
+                Bucket: process.env.CLOUDFLARE_R2_BUCKET,
+                Key: targetKey,
+                Body: buffer,
+                ContentType: 'image/png', // Cloudinary might return PNG or WEBP depending on format: auto, but let's stick to high res png if possible or whatever it returns
+                CacheControl: 'public, max-age=31536000',
+                Metadata: {
+                    'access-control-allow-origin': '*'
+                }
+            }));
+
+            return `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/${targetKey}`;
+        } catch (error) {
+            console.error('downloadAndUploadToR2 error:', error.message);
+            throw error;
+        }
     }
 };

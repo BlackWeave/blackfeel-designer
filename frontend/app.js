@@ -1,13 +1,75 @@
 // --- Configuration ---
 const API_BASE = '/api';
 
+// Returns a URL that is guaranteed to come with CORS headers when loaded by the browser.
+// CDN responses are sometimes cached without CORS headers ("cache poisoning"), which
+// breaks canvas operations that require crossOrigin="anonymous". Routing through our
+// own backend proxy avoids this entirely. Only CDN images need proxying; local/blob
+// URLs are returned unchanged.
+function getProxiedUrl(url) {
+    if (!url) return url;
+    // Skip proxy for blobs, data URIs, and non-CDN URLs
+    if (url.startsWith('blob:') || url.startsWith('data:') || !url.includes('cdn.blackfeel.co.in')) {
+        return url;
+    }
+    return `${API_BASE}/designs/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
+const CURATED_INSPIRATION = [
+    {
+        prompt: "Raymond Reddington from The BlackList.",
+        url: "https://cdn.blackfeel.co.in/designs/12ee2c0b-175f-4422-972f-87c9a3a255c0.webp"
+    },
+    {
+        prompt: "Led Zeppelin",
+        url: "https://cdn.blackfeel.co.in/designs/f92105f7-4d94-48a1-9888-f9357182a4bb.webp"
+    },
+    {
+        prompt: "Thor and Hulk",
+        url: "https://cdn.blackfeel.co.in/designs/2a107926-7118-4423-90f7-773bd6dac031.webp"
+    },
+    {
+        prompt: "Seedha Mauth",
+        url: "https://cdn.blackfeel.co.in/designer-inspirations/seedha_mauth_name.jpeg"
+    },
+    {
+        prompt: "The world view",
+        url: "https://cdn.blackfeel.co.in/designer-inspirations/b29b7d27-ae27-48c1-b050-1514855e320f.png"
+    }
+];
+
+// --- T-shirt image maps ---
+const TSHIRT_FRONT_MAP = {
+    '#1a1a1a': 'assets/black-tshirt.png',
+    '#f5f5f5': 'assets/white-tshirt.png',
+    '#1e3a8a': 'assets/blue-tshirt.png',
+    '#7f1d1d': 'assets/red-tshirt.png'
+};
+
+const TSHIRT_BACK_MAP = {
+    '#1a1a1a': 'assets/black-tshirt-back.png',
+    '#f5f5f5': 'assets/white-tshirt-back.png',
+    '#1e3a8a': 'assets/blue-tshirt-back.png',
+    '#7f1d1d': 'assets/red-tshirt-back.png'
+};
+
+// Reverse map: src -> color (for color buttons)
+const COLOR_FROM_FRONT_SRC = {
+    'assets/black-tshirt.png': '#1a1a1a',
+    'assets/white-tshirt.png': '#f5f5f5',
+    'assets/blue-tshirt.png': '#1e3a8a',
+    'assets/red-tshirt.png': '#7f1d1d'
+};
+
 // --- State Management ---
 const state = {
     token: localStorage.getItem('luxe_token'),
     user: null,
     generationsLeft: 5,
-    currentDesign: null,
-    currentTshirtColor: '#1a1a1a',
+    currentSide: 'front',       // 'front' | 'back'
+    frontDesign: null,           // { id, url, prompt, x, y, scale }
+    backDesign: null,            // { id, url, prompt, x, y, scale }
+    currentTshirtColor: '#f5f5f5',
     history: []
 };
 
@@ -29,7 +91,7 @@ const DOM = {
     authError: document.getElementById('auth-error'),
     logoutBtn: document.getElementById('logout-btn'),
     myOrdersBtn: document.getElementById('my-orders-btn'),
-    
+
     // Main UI
     tshirtImg: document.getElementById('tshirt-base-img'),
     colorBtns: document.querySelectorAll('.color-btn'),
@@ -37,11 +99,16 @@ const DOM = {
     generateBtn: document.getElementById('generate-btn'),
     btnLoader: document.getElementById('btn-loader'),
     rateLimitDisplay: document.getElementById('rate-limit-display'),
-    designWrapper: document.getElementById('design-wrapper'),
+    designWrapper: document.getElementById('generated-image-container'),
     generatedImage: document.getElementById('generated-image'),
     resizeHandle: document.getElementById('resize-handle'),
+    removeDesignBtn: document.getElementById('remove-design-btn'),
     buyNowBtn: document.getElementById('buy-now-btn'),
-    
+
+    // Side Toggle
+    toggleFront: document.getElementById('toggle-front'),
+    toggleBack: document.getElementById('toggle-back'),
+
     // Archives Modal
     archivesBtn: document.getElementById('archives-btn'),
     archivesModal: document.getElementById('archives-modal'),
@@ -54,11 +121,50 @@ const DOM = {
     closeOrdersBtn: document.getElementById('close-orders-btn'),
     ordersList: document.getElementById('orders-list'),
     emptyOrders: document.getElementById('empty-orders'),
-    shopNowBtn: document.getElementById('shop-now-btn')
+    shopNowBtn: document.getElementById('shop-now-btn'),
+
+    // Inspiration Gallery
+    inspirationBtn: document.getElementById('inspiration-btn'),
+    inspirationModal: document.getElementById('inspiration-modal'),
+    closeInspirationBtn: document.getElementById('close-inspiration-btn'),
+    inspirationPrevBtn: document.getElementById('inspiration-prev-btn'),
+    inspirationNextBtn: document.getElementById('inspiration-next-btn'),
+    inspirationMainImage: document.getElementById('inspiration-main-image'),
+    inspirationQuote: document.getElementById('inspiration-quote'),
+    usePromptBtn: document.getElementById('use-prompt-btn'),
+    inspirationPagination: document.getElementById('inspiration-pagination')
 };
+
+// --- Helper: get current design for active side ---
+function getCurrentDesign() {
+    return state.currentSide === 'front' ? state.frontDesign : state.backDesign;
+}
+
+function setCurrentDesign(design) {
+    if (state.currentSide === 'front') {
+        state.frontDesign = design;
+    } else {
+        state.backDesign = design;
+    }
+}
+
+function hasAnyDesign() {
+    return state.frontDesign !== null || state.backDesign !== null;
+}
+
+// --- Get t-shirt image src for current side and color ---
+function getTshirtSrc(color, side) {
+    const map = side === 'back' ? TSHIRT_BACK_MAP : TSHIRT_FRONT_MAP;
+    return map[color] || (side === 'back' ? 'assets/white-tshirt-back.png' : 'assets/white-tshirt.png');
+}
 
 // --- Initialization ---
 async function init() {
+    // Ensure BUY NOW button is hidden initially
+    if (DOM.buyNowBtn) {
+        DOM.buyNowBtn.classList.add('hidden');
+    }
+
     setupEventListeners();
     initInteractJS();
 
@@ -77,12 +183,16 @@ function setupEventListeners() {
         DOM.loginForm.classList.add('hidden');
         DOM.registerForm.classList.remove('hidden');
         DOM.authError.classList.add('hidden');
+        const regError = document.getElementById('auth-error-register');
+        if (regError) regError.classList.add('hidden');
     });
 
     DOM.showLoginBtn.addEventListener('click', () => {
         DOM.registerForm.classList.add('hidden');
         DOM.loginForm.classList.remove('hidden');
         DOM.authError.classList.add('hidden');
+        const regError = document.getElementById('auth-error-register');
+        if (regError) regError.classList.add('hidden');
     });
 
     DOM.logoutBtn.addEventListener('click', handleLogout);
@@ -93,11 +203,11 @@ function setupEventListeners() {
         DOM.archivesModal.classList.remove('hidden');
         renderHistory();
     });
-    
+
     DOM.closeArchivesBtn.addEventListener('click', () => {
         DOM.archivesModal.classList.add('hidden');
     });
-    
+
     // Orders Modal
     DOM.closeOrdersBtn.addEventListener('click', () => {
         DOM.ordersModal.classList.add('hidden');
@@ -117,33 +227,223 @@ function setupEventListeners() {
         if (e.target === DOM.ordersModal) {
             DOM.ordersModal.classList.add('hidden');
         }
+        if (DOM.inspirationModal && e.target === DOM.inspirationModal) {
+            DOM.inspirationModal.classList.add('hidden');
+        }
+        // Also close when clicking on the backdrop inside the inspiration modal
+        if (DOM.inspirationModal && !DOM.inspirationModal.classList.contains('hidden')) {
+            const backdrop = DOM.inspirationModal.querySelector('.modal-backdrop');
+            if (e.target === backdrop) {
+                DOM.inspirationModal.classList.add('hidden');
+            }
+        }
+    });
+
+    // Inspiration Gallery
+    if (DOM.inspirationBtn) {
+        DOM.inspirationBtn.addEventListener('click', () => {
+            if (DOM.inspirationModal) {
+                DOM.inspirationModal.classList.remove('hidden');
+                renderInspiration();
+            }
+        });
+    }
+
+    if (DOM.closeInspirationBtn) {
+        DOM.closeInspirationBtn.addEventListener('click', () => {
+            if (DOM.inspirationModal) DOM.inspirationModal.classList.add('hidden');
+        });
+    }
+
+    // Navigation buttons for carousel
+    if (DOM.inspirationPrevBtn) {
+        DOM.inspirationPrevBtn.addEventListener('click', () => {
+            navigateInspiration(-1);
+        });
+    }
+
+    if (DOM.inspirationNextBtn) {
+        DOM.inspirationNextBtn.addEventListener('click', () => {
+            navigateInspiration(1);
+        });
+    }
+
+    // Use prompt button
+    if (DOM.usePromptBtn) {
+        DOM.usePromptBtn.addEventListener('click', () => {
+            if (DOM.currentInspirationItem) {
+                DOM.promptInput.value = DOM.currentInspirationItem.prompt;
+                DOM.inspirationModal.classList.add('hidden');
+                DOM.promptInput.focus();
+            }
+        });
+    }
+
+    // Keyboard navigation for inspiration modal
+    document.addEventListener('keydown', (e) => {
+        if (DOM.inspirationModal && !DOM.inspirationModal.classList.contains('hidden')) {
+            if (e.key === 'Escape') {
+                DOM.inspirationModal.classList.add('hidden');
+            } else if (e.key === 'ArrowLeft') {
+                navigateInspiration(-1);
+            } else if (e.key === 'ArrowRight') {
+                navigateInspiration(1);
+            }
+        }
     });
 
     // Color buttons
     DOM.colorBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const newImageSrc = e.target.dataset.src;
+            const newFrontSrc = e.target.dataset.src;
+            const newColor = COLOR_FROM_FRONT_SRC[newFrontSrc] || '#f5f5f5';
+            state.currentTshirtColor = newColor;
+
+            // Update displayed image for current side
+            const newSrc = getTshirtSrc(newColor, state.currentSide);
             DOM.tshirtImg.style.opacity = 0.5;
             setTimeout(() => {
-                DOM.tshirtImg.src = newImageSrc;
+                DOM.tshirtImg.src = newSrc;
                 DOM.tshirtImg.style.opacity = 1;
             }, 150);
 
-            const colorMap = {
-                'assets/black-tshirt.png': '#1a1a1a',
-                'assets/white-tshirt.png': '#f5f5f5',
-                'assets/blue-tshirt.png': '#1e3a8a',
-                'assets/red-tshirt.png': '#7f1d1d'
-            };
-            state.currentTshirtColor = colorMap[newImageSrc] || '#1a1a1a';
+            // Manage active state for CSS rings
+            DOM.colorBtns.forEach(b => b.classList.remove('is-active'));
+            btn.classList.add('is-active');
         });
     });
 
+    // Front/Back toggle
+    if (DOM.toggleFront) {
+        DOM.toggleFront.addEventListener('click', () => switchSide('front'));
+    }
+    if (DOM.toggleBack) {
+        DOM.toggleBack.addEventListener('click', () => switchSide('back'));
+    }
+
     // Generate button
     DOM.generateBtn.addEventListener('click', generateDesign);
-    
+
+    // Remove design button
+    if (DOM.removeDesignBtn) {
+        DOM.removeDesignBtn.addEventListener('click', removeDesign);
+    }
+
     // Buy Now button
-    DOM.buyNowBtn.addEventListener('click', handleBuyNow);
+    if (DOM.buyNowBtn) {
+        DOM.buyNowBtn.addEventListener('click', handleBuyNow);
+    }
+}
+
+// --- Inspiration Gallery Function ---
+let currentInspirationIndex = 0;
+
+function renderInspiration() {
+    if (!DOM.inspirationMainImage || !DOM.inspirationQuote || !DOM.inspirationPagination) return;
+
+    // Reset index to first item when opening modal
+    currentInspirationIndex = 0;
+    DOM.currentInspirationItem = CURATED_INSPIRATION[0];
+
+    updateInspirationDisplay();
+}
+
+function updateInspirationDisplay() {
+    const item = CURATED_INSPIRATION[currentInspirationIndex];
+    DOM.currentInspirationItem = item;
+
+    // Update main image
+    DOM.inspirationMainImage.src = item.url;
+    DOM.inspirationMainImage.alt = item.prompt;
+
+    // Update quote
+    DOM.inspirationQuote.textContent = `"${item.prompt}"`;
+
+    // Update pagination dots
+    renderPagination();
+
+    // Update navigation buttons state
+    updateNavigationButtons();
+}
+
+function renderPagination() {
+    if (!DOM.inspirationPagination) return;
+
+    DOM.inspirationPagination.innerHTML = '';
+
+    CURATED_INSPIRATION.forEach((_, index) => {
+        const dot = document.createElement('button');
+        dot.className = `inspiration-pagination-dot${index === currentInspirationIndex ? ' active' : ''}`;
+        dot.addEventListener('click', () => {
+            currentInspirationIndex = index;
+            updateInspirationDisplay();
+        });
+        DOM.inspirationPagination.appendChild(dot);
+    });
+}
+
+function updateNavigationButtons() {
+    // Disable prev button if at first item
+    if (DOM.inspirationPrevBtn) {
+        DOM.inspirationPrevBtn.style.opacity = currentInspirationIndex === 0 ? '0.5' : '1';
+        DOM.inspirationPrevBtn.style.cursor = currentInspirationIndex === 0 ? 'not-allowed' : 'pointer';
+    }
+
+    // Disable next button if at last item
+    if (DOM.inspirationNextBtn) {
+        const isLast = currentInspirationIndex === CURATED_INSPIRATION.length - 1;
+        DOM.inspirationNextBtn.style.opacity = isLast ? '0.5' : '1';
+        DOM.inspirationNextBtn.style.cursor = isLast ? 'not-allowed' : 'pointer';
+    }
+}
+
+function navigateInspiration(direction) {
+    const newIndex = currentInspirationIndex + direction;
+
+    // Check bounds
+    if (newIndex < 0 || newIndex >= CURATED_INSPIRATION.length) return;
+
+    currentInspirationIndex = newIndex;
+    updateInspirationDisplay();
+}
+
+// --- Side Toggle Logic ---
+function switchSide(side) {
+    if (state.currentSide === side) return;
+
+    // Save current design's position before switching
+    const currentDesign = getCurrentDesign();
+    if (currentDesign) {
+        // Position is already saved in the design object via applyTransform
+    }
+
+    state.currentSide = side;
+
+    // Update toggle button active states
+    DOM.toggleFront.classList.toggle('is-active', side === 'front');
+    DOM.toggleBack.classList.toggle('is-active', side === 'back');
+
+    // Swap t-shirt base image
+    const newSrc = getTshirtSrc(state.currentTshirtColor, side);
+    DOM.tshirtImg.style.opacity = 0.5;
+    setTimeout(() => {
+        DOM.tshirtImg.src = newSrc;
+        DOM.tshirtImg.style.opacity = 1;
+    }, 150);
+
+    // Swap design overlay
+    const newDesign = getCurrentDesign();
+    if (newDesign) {
+        loadDesignToCanvas(newDesign);
+    } else {
+        // Hide design overlay for this side
+        DOM.generatedImage.onerror = null;
+        DOM.generatedImage.src = '';
+        DOM.designWrapper.classList.add('hidden');
+        DOM.designWrapper.style.transform = 'translate(-50%, -50%)';
+    }
+
+    updateUI();
 }
 
 // --- Authentication Functions ---
@@ -170,16 +470,16 @@ async function checkAuth() {
 }
 
 function showAuthModal() {
-    if(DOM.authModal) DOM.authModal.classList.remove('hidden');
+    if (DOM.authModal) DOM.authModal.classList.remove('hidden');
 }
 
 function hideAuthModal() {
-    if(DOM.authModal) DOM.authModal.classList.add('hidden');
+    if (DOM.authModal) DOM.authModal.classList.add('hidden');
 }
 
 function showApp() {
     hideAuthModal();
-    if(DOM.logoutBtn) DOM.logoutBtn.classList.remove('hidden');
+    if (DOM.logoutBtn) DOM.logoutBtn.classList.remove('hidden');
     updateUI();
 }
 
@@ -209,7 +509,7 @@ async function handleLogin() {
             showApp();
             loadHistory();
         } else {
-            showAuthError(data.error || 'Login failed');
+            showAuthError(data.error || (data.errors ? data.errors[0].msg : 'Login failed'));
         }
     } catch (error) {
         showAuthError('Connection error');
@@ -222,12 +522,12 @@ async function handleRegister() {
     const password = DOM.registerPassword.value;
 
     if (!name || !email || !password) {
-        showAuthError('Please fill all fields');
+        showAuthError('Please fill all fields', true);
         return;
     }
 
     if (password.length < 6) {
-        showAuthError('Password must be at least 6 characters');
+        showAuthError('Password must be at least 6 characters', true);
         return;
     }
 
@@ -248,10 +548,14 @@ async function handleRegister() {
             showApp();
             loadHistory();
         } else {
-            showAuthError(data.error || 'Registration failed');
+            let errorMsg = data.error || 'Registration failed';
+            if (data.errors && data.errors.length > 0) {
+                errorMsg = data.errors[0].msg || errorMsg;
+            }
+            showAuthError(errorMsg, true);
         }
     } catch (error) {
-        showAuthError('Connection error');
+        showAuthError('Connection error', true);
     }
 }
 
@@ -259,7 +563,8 @@ function handleLogout() {
     localStorage.removeItem('luxe_token');
     state.token = null;
     state.user = null;
-    state.currentDesign = null;
+    state.frontDesign = null;
+    state.backDesign = null;
     state.history = [];
     window.location.reload();
 }
@@ -272,7 +577,7 @@ async function handleMyOrders() {
 
     DOM.ordersModal.classList.remove('hidden');
     DOM.ordersList.innerHTML = '<div class="p-12 text-center text-gray-500 text-sm">Loading orders...</div>';
-    
+
     try {
         const response = await fetch(`${API_BASE}/orders`, {
             headers: { 'Authorization': `Bearer ${state.token}` }
@@ -310,12 +615,12 @@ function renderOrders(orders) {
         });
 
         const statusColors = {
-            'draft': 'bg-gray-500/20 text-gray-400',
-            'payment_pending': 'bg-yellow-500/20 text-yellow-500',
-            'paid': 'bg-green-500/20 text-green-500',
-            'production': 'bg-blue-500/20 text-blue-500',
-            'shipped': 'bg-indigo-500/20 text-indigo-500',
-            'delivered': 'bg-green-600/20 text-green-400'
+            'draft': 'background: rgba(107, 114, 128, 0.2); color: #9ca3af;',
+            'payment_pending': 'background: rgba(234, 179, 8, 0.2); color: #eab308;',
+            'paid': 'background: rgba(34, 197, 94, 0.2); color: #22c55e;',
+            'production': 'background: rgba(59, 130, 246, 0.2); color: #3b82f6;',
+            'shipped': 'background: rgba(99, 102, 241, 0.2); color: #6366f1;',
+            'delivered': 'background: rgba(22, 163, 74, 0.2); color: #4ade80;'
         };
 
         const statusLabel = order.status.replace('_', ' ').toUpperCase();
@@ -328,79 +633,178 @@ function renderOrders(orders) {
 
         // Ensure URL is valid and absolute
         if (displayImageUrl && !displayImageUrl.startsWith('http')) {
-            // Fallback for relative paths if any
             displayImageUrl = displayImageUrl.startsWith('/') ? displayImageUrl : `/${displayImageUrl}`;
         }
 
+        // Build prompt text from front and/or back designs
+        const promptParts = [];
+        if (order.front_prompt) promptParts.push(`Front: ${order.front_prompt}`);
+        if (order.back_prompt) promptParts.push(`Back: ${order.back_prompt}`);
+        const displayPrompt = promptParts.join(' | ') || 'Custom Tee';
+
         const orderCard = document.createElement('div');
-        orderCard.className = 'bg-[#1a1a1a] border border-white/10 rounded-lg overflow-hidden flex flex-col md:flex-row min-h-[120px]';
-        
+        orderCard.style.cssText = 'background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; display: flex; flex-direction: row; min-height: 120px; margin-bottom: 12px;';
+
         orderCard.innerHTML = `
-            <div class="w-full md:w-32 bg-[#0f0f0f] flex items-center justify-center p-2 shrink-0">
-                ${displayImageUrl ? 
-                    `<img src="${displayImageUrl}" 
-                          class="max-w-full max-h-full object-contain drop-shadow-lg" 
+            <div style="width: 120px; background: #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 8px; flex-shrink: 0;">
+                ${displayImageUrl ?
+                `<img src="${displayImageUrl}"
+                          style="max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));"
                           alt="Order Design"
-                          onerror="this.src='assets/black-tshirt.png'; this.style.opacity='0.5';">` : 
-                    `<div class="w-full h-full bg-gray-800 flex items-center justify-center text-[10px] text-gray-500">NO IMAGE</div>`
-                }
+                          onerror="this.src='assets/black-tshirt.png'; this.style.opacity='0.5';">` :
+                `<div style="width: 100%; height: 100%; background: #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #6b7280;">NO IMAGE</div>`
+            }
             </div>
-            <div class="flex-1 p-4 flex flex-col justify-between">
-                <div class="flex justify-between items-start mb-2">
+            <div style="flex: 1; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                     <div>
-                        <div class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">${date}</div>
-                        <h4 class="text-white text-sm font-medium">Order #${order.id.slice(0, 8).toUpperCase()}</h4>
-                        <div class="text-[10px] text-gray-500 mt-1 italic truncate max-w-[200px]">"${order.prompt}"</div>
+                        <div style="font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">${date}</div>
+                        <h4 style="color: #111827; font-size: 14px; font-weight: 500; margin: 0;">Order #${order.id.slice(0, 8).toUpperCase()}</h4>
+                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px;">"${displayPrompt}"</div>
                     </div>
-                    <span class="text-[10px] px-2 py-1 rounded ${statusColors[order.status] || 'bg-gray-500/20 text-gray-400'} font-medium tracking-widest uppercase shrink-0">
+                    <span style="font-size: 10px; padding: 4px 8px; border-radius: 4px; ${statusColors[order.status] || 'background: rgba(107, 114, 128, 0.2); color: #9ca3af;'} font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; flex-shrink: 0;">
                         ${statusLabel}
                     </span>
                 </div>
-                <div class="flex justify-between items-end">
-                    <div class="text-xs text-gray-400">
-                        <span class="uppercase font-bold">${order.tshirt_size}</span> • ${order.tshirt_quantity} Unit${order.tshirt_quantity > 1 ? 's' : ''}
+                <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div style="font-size: 12px; color: #4b5563;">
+                        <span style="text-transform: uppercase; font-weight: bold; color: #111827;">${order.tshirt_size}</span> • ${order.tshirt_quantity} Unit${order.tshirt_quantity > 1 ? 's' : ''}
                     </div>
-                    <div class="text-yellow-600 font-medium tracking-widest text-sm">
+                    <div style="color: #111827; font-weight: 600; letter-spacing: 0.05em; font-size: 14px;">
                         ₹${(order.amount_in_paise / 100).toFixed(2)}
                     </div>
                 </div>
             </div>
         `;
-        
+
         DOM.ordersList.appendChild(orderCard);
     });
 }
 
-function showAuthError(message) {
-    if(DOM.authError) {
-        DOM.authError.textContent = message;
-        DOM.authError.classList.remove('hidden');
+function showAuthError(message, isRegister = false) {
+    const errorEl = isRegister ? document.getElementById('auth-error-register') : DOM.authError;
+    if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
     }
 }
 
 function updateUI() {
     if (state.user) {
-        DOM.rateLimitDisplay.textContent = state.generationsLeft;
+        if (DOM.rateLimitDisplay) {
+            DOM.rateLimitDisplay.textContent = `Number of Designs left: ${state.generationsLeft}`;
+        }
 
         if (state.generationsLeft <= 0) {
             DOM.generateBtn.disabled = true;
-            DOM.generateBtn.querySelector('span').textContent = 'Limit Reached';
+            DOM.generateBtn.querySelector('.btn-primary-text').textContent = 'Limit Reached';
         }
 
-        // Show BUY NOW button if there's a current design
-        if (state.currentDesign) {
-            DOM.buyNowBtn.classList.remove('hidden');
-        } else {
-            DOM.buyNowBtn.classList.add('hidden');
+        // Show BUY NOW button if there's any design (front or back)
+        if (DOM.buyNowBtn) {
+            if (hasAnyDesign()) {
+                DOM.buyNowBtn.classList.remove('hidden');
+                DOM.buyNowBtn.disabled = false;
+            } else {
+                DOM.buyNowBtn.classList.add('hidden');
+                DOM.buyNowBtn.disabled = true;
+            }
         }
     }
 }
+
+// --- Professional Drag & Resize Engine (Interact.js) ---
+function initInteractJS() {
+    interact('#generated-image-container')
+        .draggable({
+            inertia: true,
+            modifiers: [
+                interact.modifiers.restrictRect({
+                    restriction: 'parent',
+                    endOnly: true
+                })
+            ],
+            autoScroll: true,
+            listeners: {
+                move: dragMoveListener,
+            }
+        });
+
+    if (DOM.resizeHandle) {
+        DOM.resizeHandle.addEventListener('mousedown', initResize);
+        DOM.resizeHandle.addEventListener('touchstart', initResize, { passive: false });
+    }
+}
+
+let startY = 0;
+let startScale = 1;
+
+function initResize(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    startY = e.clientY || (e.touches && e.touches[0].clientY);
+    const currentDesign = getCurrentDesign();
+    startScale = (currentDesign && currentDesign.scale) || 1;
+
+    window.addEventListener('mousemove', resizeMoveListener);
+    window.addEventListener('touchmove', resizeMoveListener, { passive: false });
+    window.addEventListener('mouseup', stopResize);
+    window.addEventListener('touchend', stopResize);
+}
+
+function resizeMoveListener(e) {
+    e.preventDefault();
+    const currentDesign = getCurrentDesign();
+    if (!currentDesign) return;
+
+    const currentY = e.clientY || (e.touches && e.touches[0].clientY);
+    const deltaY = startY - currentY;
+    let newScale = startScale + (deltaY * 0.01);
+
+    newScale = Math.max(0.3, Math.min(newScale, 2.5));
+
+    applyTransform(currentDesign.x, currentDesign.y, newScale);
+}
+
+function stopResize() {
+    window.removeEventListener('mousemove', resizeMoveListener);
+    window.removeEventListener('touchmove', resizeMoveListener);
+    window.removeEventListener('mouseup', stopResize);
+    window.removeEventListener('touchend', stopResize);
+}
+
+function dragMoveListener(event) {
+    const currentDesign = getCurrentDesign();
+    if (!currentDesign) return;
+
+    const scale = currentDesign.scale || 1;
+    currentDesign.x += (event.dx / scale);
+    currentDesign.y += (event.dy / scale);
+
+    applyTransform(currentDesign.x, currentDesign.y, scale);
+}
+
+function applyTransform(x, y, scale) {
+    const currentDesign = getCurrentDesign();
+    if (currentDesign) {
+        currentDesign.x = x;
+        currentDesign.y = y;
+        currentDesign.scale = scale;
+    }
+    DOM.designWrapper.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+}
+
 
 // --- Design Generation ---
 async function generateDesign() {
     const prompt = DOM.promptInput.value.trim();
     if (!prompt) {
         alert('Please describe your design vision');
+        return;
+    }
+
+    if (!state.token) {
+        showAuthModal();
         return;
     }
 
@@ -427,12 +831,31 @@ async function generateDesign() {
 
         const imageUrl = data.imageUrl;
 
-        // Preload image
+        console.log(`🎨 Generated ${state.currentSide} design received:`, imageUrl);
+
+        // Preload image with timeout
         await new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            img.onload = resolve;
-            img.onerror = reject;
+
+            const timeout = setTimeout(() => {
+                console.error('Image load timeout:', imageUrl);
+                reject(new Error('Image load timed out. Check your internet connection.'));
+            }, 15000);
+
+            img.onload = () => {
+                clearTimeout(timeout);
+                console.log('✅ Image loaded successfully');
+                resolve(imageUrl);
+            };
+
+            img.onerror = (e) => {
+                clearTimeout(timeout);
+                console.error('❌ Image load failed:', imageUrl);
+                reject(new Error('Failed to load generated image. The server may be unreachable.'));
+            };
+
+            console.log('🔄 Loading image from:', imageUrl);
             img.src = imageUrl;
         });
 
@@ -440,7 +863,12 @@ async function generateDesign() {
 
     } catch (error) {
         console.error('Generation failed:', error);
-        alert(error.message || 'Failed to generate design');
+
+        if (error.message === 'Failed to load generated image') {
+            alert('Design was generated but the image could not be loaded. Please check your internet connection and try again.');
+        } else {
+            alert(error.message || 'Failed to generate design');
+        }
     } finally {
         setLoadingState(false);
     }
@@ -450,8 +878,10 @@ function setLoadingState(isLoading) {
     DOM.generateBtn.disabled = isLoading;
     if (isLoading) {
         DOM.btnLoader.classList.remove('hidden');
+        DOM.generateBtn.querySelector('.btn-primary-text').textContent = 'Generating...';
     } else {
         DOM.btnLoader.classList.add('hidden');
+        DOM.generateBtn.querySelector('.btn-primary-text').textContent = 'Generate';
     }
 }
 
@@ -471,28 +901,89 @@ function handleNewDesign(url, promptText, data) {
 
     if (data && data.generationsLeft !== undefined) {
         state.generationsLeft = data.generationsLeft;
-        DOM.rateLimitDisplay.textContent = state.generationsLeft;
+        if (DOM.rateLimitDisplay) {
+            DOM.rateLimitDisplay.textContent = `Number of Designs left: ${state.generationsLeft}`;
+        }
 
         if (state.generationsLeft <= 0) {
             DOM.generateBtn.disabled = true;
-            DOM.generateBtn.querySelector('span').textContent = 'Limit Reached';
+            DOM.generateBtn.querySelector('.btn-primary-text').textContent = 'Limit Reached';
         }
     }
 
     renderHistory();
+    // Load the new design onto the current side
     loadDesignToCanvas(newDesign);
 }
 
+// async function loadDesignToCanvas(design) {
+//     // Set the design on the current side
+//     setCurrentDesign(design);
+
+//     const canvasUrl = getProxiedUrl(design.url);
+
+//     try {
+//         // If it's a proxied URL, we must fetch it manually to pass the Auth header
+//         if (canvasUrl.includes('/proxy-image')) {
+//             const response = await fetch(canvasUrl, {
+//                 headers: { 'Authorization': `Bearer ${state.token}` }
+//             });
+
+//             if (!response.ok) throw new Error('Failed to fetch protected image');
+
+//             const blob = await response.blob();
+//             DOM.generatedImage.src = URL.createObjectURL(blob);
+//         } else {
+//             // Fallback for non-proxied URLs
+//             DOM.generatedImage.crossOrigin = 'anonymous';
+//             DOM.generatedImage.src = canvasUrl;
+//         }
+
+//         DOM.designWrapper.classList.remove('hidden');
+
+//         // Apply position constraints
+//         applyTransform(design.x, design.y, design.scale);
+//         updateUI();
+
+//     } catch (error) {
+//         console.error('Failed to load design on canvas:', design.url, error);
+//         alert('Failed to display design. Please try regenerating.');
+//     }
+// }
+
 function loadDesignToCanvas(design) {
-    state.currentDesign = design;
-    DOM.generatedImage.src = design.url;
+    // Set the design on the current side
+    setCurrentDesign(design);
+
+    // Use proxied URL to guarantee CORS headers — CDN may have cached without them.
+    const canvasUrl = getProxiedUrl(design.url);
+    DOM.generatedImage.crossOrigin = 'anonymous';
+    DOM.generatedImage.src = canvasUrl;
+    DOM.generatedImage.onerror = () => {
+        console.error('Failed to load design on canvas:', design.url);
+        alert('Failed to display design. Please try regenerating.');
+    };
     DOM.designWrapper.classList.remove('hidden');
+
+    // Apply position constraints
     applyTransform(design.x, design.y, design.scale);
-    
-    // Show BUY NOW button
-    if (DOM.buyNowBtn) {
-        DOM.buyNowBtn.classList.remove('hidden');
-    }
+
+    // Update UI to show BUY NOW button (handles both visibility and enabled state)
+    updateUI();
+}
+
+function removeDesign() {
+    // Clear only the current side's design
+    setCurrentDesign(null);
+
+    // Remove the onerror handler
+    DOM.generatedImage.onerror = null;
+    DOM.generatedImage.src = '';
+    DOM.designWrapper.classList.add('hidden');
+    DOM.designWrapper.style.transform = 'translate(-50%, -50%)';
+
+    // Update BUY NOW visibility based on whether any design remains
+    updateUI();
 }
 
 function restoreFromHistory(id) {
@@ -506,17 +997,16 @@ function restoreFromHistory(id) {
             y: 0,
             scale: 1
         };
+        // Loads onto the currently active side
         loadDesignToCanvas(normalizedDesign);
-        // Close modal after selection
         DOM.archivesModal.classList.add('hidden');
+        updateUI();
     }
 }
 
 function renderHistory() {
-    // Clear grid
     if (DOM.archivesGrid) DOM.archivesGrid.innerHTML = '';
 
-    // Handle Empty State
     if (state.history.length === 0) {
         if (DOM.emptyArchives) DOM.emptyArchives.classList.remove('hidden');
         if (DOM.archivesGrid) DOM.archivesGrid.classList.add('hidden');
@@ -527,18 +1017,12 @@ function renderHistory() {
     }
 
     state.history.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'aspect-square rounded overflow-hidden cursor-pointer border border-white/10 hover:border-yellow-600 transition-colors';
-
-        div.onclick = () => restoreFromHistory(item.id);
-
         const img = document.createElement('img');
         img.src = item.url || item.processed_image_url;
-        img.className = 'w-full h-full object-cover';
         img.alt = 'Design Archive';
+        img.onclick = () => restoreFromHistory(item.id);
 
-        div.appendChild(img);
-        DOM.archivesGrid.appendChild(div);
+        DOM.archivesGrid.appendChild(img);
     });
 }
 
@@ -551,9 +1035,11 @@ async function loadHistory() {
         if (response.ok) {
             const data = await response.json();
             state.history = data.designs || [];
-            if(data.generationsUsed !== undefined) {
+            if (data.generationsUsed !== undefined) {
                 state.generationsLeft = 5 - data.generationsUsed;
-                DOM.rateLimitDisplay.textContent = state.generationsLeft;
+                if (DOM.rateLimitDisplay) {
+                    DOM.rateLimitDisplay.textContent = `Number of Designs left: ${state.generationsLeft}`;
+                }
             }
 
             renderHistory();
@@ -565,126 +1051,143 @@ async function loadHistory() {
 
 // --- BUY NOW / Checkout Logic ---
 
-// Finalize design by "baking" t-shirt + design composite
-// async function handleFinalize() {
-//     if (!state.currentDesign) {
-//         throw new Error('No design to finalize');
-//     }
-
-//     try {
-//         const canvas = document.createElement('canvas');
-//         canvas.width = 1000;
-//         canvas.height = 1200;
-//         const ctx = canvas.getContext('2d');
-
-//         // 1. Load and Draw the T-Shirt Mockup First
-//         const tshirtImg = new Image();
-//         tshirtImg.src = DOM.tshirtImg.src;
-//         await new Promise((resolve) => (tshirtImg.onload = resolve));
-//         ctx.drawImage(tshirtImg, 0, 0, 1000, 1200);
-
-//         // 2. Draw the AI Design on top
-//         const designImg = new Image();
-//         designImg.crossOrigin = 'anonymous';
-//         designImg.src = state.currentDesign.url;
-        
-//         await new Promise((resolve, reject) => {
-//             designImg.onload = resolve;
-//             designImg.onerror = () => {
-//                 console.warn('CORS failed, retrying without crossOrigin constraint...');
-//                 designImg.crossOrigin = null;
-//                 designImg.src = state.currentDesign.url + '?t=' + Date.now();
-//                 designImg.onload = resolve;
-//                 designImg.onerror = reject;
-//             };
-//         });
-
-//         const centerX = 500 + (state.currentDesign.x * 2);
-//         const centerY = 600 + (state.currentDesign.y * 2);
-//         const dWidth = 400 * state.currentDesign.scale * 2;
-//         const dHeight = 400 * state.currentDesign.scale * 2;
-
-//         ctx.drawImage(
-//             designImg,
-//             centerX - dWidth / 2,
-//             centerY - dHeight / 2,
-//             dWidth,
-//             dHeight
-//         );
-
-//         return canvas.toDataURL('image/jpeg', 0.9);
-//     } catch (error) {
-//         console.error('Baking failed:', error);
-//         throw new Error('Failed to process design image. Please try regenerating or contact support if issue persists.');
-//     }
-// }
-
-// app.js
-
-async function handleFinalize() {
-    if (!state.currentDesign) return null;
+// Bake a single side's composite (t-shirt + design)
+async function bakeSideComposite(side) {
+    const design = side === 'front' ? state.frontDesign : state.backDesign;
+    if (!design) return null;
 
     try {
         const canvas = document.createElement('canvas');
-        // Production dimensions for the printer
         const CANVAS_WIDTH = 2000;
         const CANVAS_HEIGHT = 2400;
         canvas.width = CANVAS_WIDTH;
         canvas.height = CANVAS_HEIGHT;
         const ctx = canvas.getContext('2d');
 
+        // Load t-shirt image for this side
+        const tshirtSrc = getTshirtSrc(state.currentTshirtColor, side);
         const tshirtImg = new Image();
-        tshirtImg.src = DOM.tshirtImg.src;
-        
+        tshirtImg.src = tshirtSrc;
+
         const designImg = new Image();
         designImg.crossOrigin = "anonymous";
-        designImg.src = state.currentDesign.url;
+        // Use proxied URL so CORS headers are always present (CDN cache poisoning fix)
+        designImg.src = getProxiedUrl(design.url);
 
         await Promise.all([
             new Promise(res => tshirtImg.onload = res),
             new Promise(res => designImg.onload = res)
         ]);
 
-        // 1. Draw the T-shirt to fill the entire production canvas
+        // Draw t-shirt
         ctx.drawImage(tshirtImg, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // 2. Calculate the exact UI scale factor
-        // We determine how much larger the canvas is compared to the UI element
-        const uiWidth = DOM.tshirtImg.clientWidth;
-        const uiHeight = DOM.tshirtImg.clientHeight;
-        const scaleX = CANVAS_WIDTH / uiWidth;
-        const scaleY = CANVAS_HEIGHT / uiHeight;
+        // Map design position from UI to canvas
+        // Use the t-shirt image natural dimensions for accurate scaling
+        const uiTshirtWidth = DOM.tshirtImg.clientWidth;
+        const uiTshirtHeight = DOM.tshirtImg.clientHeight;
 
-        // 3. Map the design size and position using these factors
-        // This ensures the design stays perfectly "within the shirt"
-        const finalWidth = (DOM.generatedImage.clientWidth * state.currentDesign.scale) * scaleX;
-        const finalHeight = (DOM.generatedImage.clientHeight * state.currentDesign.scale) * scaleY;
+        // Calculate scale factors from UI to canvas
+        const scaleX = CANVAS_WIDTH / uiTshirtWidth;
+        const scaleY = CANVAS_HEIGHT / uiTshirtHeight;
 
-        // Calculate center based on the relative offset from the UI
-        const finalX = (CANVAS_WIDTH / 2) + (state.currentDesign.x * scaleX);
-        const finalY = (CANVAS_HEIGHT / 2) + (state.currentDesign.y * scaleY);
+        // Get design image natural dimensions
+        const designNaturalWidth = designImg.naturalWidth || 512;
+        const designNaturalHeight = designImg.naturalHeight || 512;
 
-        // 4. Draw the design
+        // Calculate the displayed design size (scaled)
+        const safeScale = design.scale || 1;
+
+        // Base design size relative to t-shirt (approximately 40% of t-shirt width at scale 1)
+        const baseDesignWidth = uiTshirtWidth * 0.4;
+        const aspectRatio = designNaturalWidth / designNaturalHeight;
+        const baseDesignHeight = baseDesignWidth / aspectRatio;
+
+        // Apply user's scale
+        const finalWidth = baseDesignWidth * safeScale * scaleX;
+        const finalHeight = baseDesignHeight * safeScale * scaleY;
+
+        // Apply position offset
+        const offsetX = design.x || 0;
+        const offsetY = design.y || 0;
+
+        // Center position + offset
+        const finalX = (CANVAS_WIDTH / 2) + (offsetX * scaleX);
+        const finalY = (CANVAS_HEIGHT / 2) + (offsetY * scaleY);
+
         ctx.drawImage(
-            designImg, 
-            finalX - (finalWidth / 2), 
-            finalY - (finalHeight / 2), 
-            finalWidth, 
+            designImg,
+            finalX - (finalWidth / 2),
+            finalY - (finalHeight / 2),
+            finalWidth,
             finalHeight
         );
 
         return canvas.toDataURL('image/jpeg', 0.95);
     } catch (error) {
-        console.error("Baking failed:", error);
+        console.error(`Baking ${side} failed:`, error);
         return null;
     }
 }
 
-async function finalizeDesignOnServer() {
-    try {
-        const finalImageBase64 = await handleFinalize();
+// Create a combined mockup with front and back side by side
+async function createCombinedMockup() {
+    const frontImage = await bakeSideComposite('front');
+    const backImage = await bakeSideComposite('back');
 
-        const response = await fetch(`${API_BASE}/designs/${state.currentDesign.id}/finalize`, {
+    // If neither side has a design, return null
+    if (!frontImage && !backImage) return null;
+
+    // Create side-by-side composite (always show both sides for clarity)
+    try {
+        const canvas = document.createElement('canvas');
+        const SIDE_WIDTH = 1000;
+        const SIDE_HEIGHT = 1200;
+        canvas.width = SIDE_WIDTH * 2 + 40; // 40px gap
+        canvas.height = SIDE_HEIGHT;
+        const ctx = canvas.getContext('2d');
+
+        // White background
+        ctx.fillStyle = '#f5f5f2';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // If only one side has a design, use it for both sides (or show blank for the other)
+        const displayFront = frontImage || backImage;
+        const displayBack = backImage || frontImage;
+
+        // Load and draw front composite (or the only available side)
+        if (displayFront) {
+            const frontImg = new Image();
+            frontImg.src = displayFront;
+            await new Promise(res => frontImg.onload = res);
+            ctx.drawImage(frontImg, 0, 0, SIDE_WIDTH, SIDE_HEIGHT);
+        }
+
+        // Load and draw back composite (or the only available side)
+        if (displayBack) {
+            const backImg = new Image();
+            backImg.src = displayBack;
+            await new Promise(res => backImg.onload = res);
+            ctx.drawImage(backImg, SIDE_WIDTH + 40, 0, SIDE_WIDTH, SIDE_HEIGHT);
+        }
+
+        // Labels
+        ctx.fillStyle = '#111827';
+        ctx.font = 'bold 28px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('FRONT', SIDE_WIDTH / 2, SIDE_HEIGHT - 20);
+        ctx.fillText('BACK', SIDE_WIDTH + 40 + SIDE_WIDTH / 2, SIDE_HEIGHT - 20);
+
+        return canvas.toDataURL('image/jpeg', 0.90);
+    } catch (error) {
+        console.error('Combined mockup creation failed:', error);
+        return frontImage || backImage;
+    }
+}
+
+async function finalizeDesignOnServer(designId, finalImageBase64) {
+    try {
+        const response = await fetch(`${API_BASE}/designs/${designId}/finalize`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -699,9 +1202,6 @@ async function finalizeDesignOnServer() {
             throw new Error(data.error || 'Failed to finalize design');
         }
 
-        state.currentDesign.finalizedImageUrl = data.finalizedImageUrl;
-        state.currentDesign.is_finalized = true;
-
         return data.finalizedImageUrl;
     } catch (error) {
         console.error('Finalize error:', error);
@@ -710,7 +1210,7 @@ async function finalizeDesignOnServer() {
 }
 
 async function handleBuyNow() {
-    if (!state.currentDesign) {
+    if (!hasAnyDesign()) {
         alert('Please generate or select a design first');
         return;
     }
@@ -726,21 +1226,29 @@ async function handleBuyNow() {
 function showSizeModal() {
     const modal = document.createElement('div');
     modal.id = 'size-modal';
-    modal.className = 'fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4';
+    modal.className = 'modal-root';
+
+    // Show which sides have designs
+    const sideInfo = [];
+    if (state.frontDesign) sideInfo.push('Front');
+    if (state.backDesign) sideInfo.push('Back');
+    const sidesText = sideInfo.join(' + ') + ' design' + (sideInfo.length > 1 ? 's' : '');
+
     modal.innerHTML = `
-        <div class="bg-[#111] border border-white/10 rounded-xl p-6 w-full max-w-sm">
-            <h3 class="serif text-xl mb-2">Select Size</h3>
-            <p class="text-sm text-gray-400 mb-6">Choose your T-shirt size</p>
-            <div class="grid grid-cols-2 gap-3 mb-6">
-                <button class="size-btn bg-[#111] border border-white/10 rounded-lg p-4 text-white hover:border-yellow-600 transition" data-size="S">S</button>
-                <button class="size-btn bg-[#111] border border-white/10 rounded-lg p-4 text-white hover:border-yellow-600 transition" data-size="M">M</button>
-                <button class="size-btn bg-[#111] border border-white/10 rounded-lg p-4 text-white hover:border-yellow-600 transition" data-size="L">L</button>
-                <button class="size-btn bg-[#111] border border-white/10 rounded-lg p-4 text-white hover:border-yellow-600 transition" data-size="XL">XL</button>
-                <button class="size-btn bg-[#111] border border-white/10 rounded-lg p-4 text-white hover:border-yellow-600 transition" data-size="XXL">XXL</button>
+        <div class="modal-backdrop"></div>
+        <div class="modal-panel" style="max-width: 380px;">
+            <h3 class="serif modal-title" style="margin-bottom: 8px;">Select Size</h3>
+            <p class="modal-subcopy" style="margin-bottom: 24px;">Choose your T-shirt size · <strong>${sidesText}</strong></p>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px;">
+                <button class="size-btn btn-secondary" data-size="S" style="margin-top:0;">S</button>
+                <button class="size-btn btn-secondary" data-size="M" style="margin-top:0;">M</button>
+                <button class="size-btn btn-secondary" data-size="L" style="margin-top:0;">L</button>
+                <button class="size-btn btn-secondary" data-size="XL" style="margin-top:0;">XL</button>
+                <button class="size-btn btn-secondary" data-size="XXL" style="margin-top:0; grid-column: span 2;">XXL</button>
             </div>
-            <div class="flex gap-3">
-                <button id="cancel-size-btn" class="flex-1 bg-[#111] hover:bg-[#222] text-gray-400 py-3 rounded-lg transition">Cancel</button>
-                <button id="proceed-buy-btn" class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-black font-semibold py-3 rounded-lg transition">Proceed</button>
+            <div style="display: flex; gap: 12px;">
+                <button id="cancel-size-btn" class="btn-secondary" style="margin-top:0; flex: 1;">Cancel</button>
+                <button id="proceed-buy-btn" class="btn-primary" style="flex: 1;">Proceed</button>
             </div>
         </div>
     `;
@@ -750,8 +1258,14 @@ function showSizeModal() {
 
     modal.querySelectorAll('.size-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            modal.querySelectorAll('.size-btn').forEach(b => b.classList.remove('border-yellow-600', 'bg-[#222]'));
-            btn.classList.add('border-yellow-600', 'bg-[#222]');
+            modal.querySelectorAll('.size-btn').forEach(b => {
+                b.style.borderColor = '#d1d5db';
+                b.style.backgroundColor = '#ffffff';
+                b.style.color = '#111827';
+            });
+            btn.style.borderColor = '#111827';
+            btn.style.backgroundColor = '#111827';
+            btn.style.color = '#ffffff';
             selectedSize = btn.dataset.size;
         });
     });
@@ -765,15 +1279,53 @@ function showSizeModal() {
             alert('Please select a size');
             return;
         }
-        
+
         const proceedBtn = document.getElementById('proceed-buy-btn');
         proceedBtn.disabled = true;
         proceedBtn.textContent = 'Finalizing...';
-        
+
         try {
-            await finalizeDesignOnServer();
+            // Finalize front design if it exists
+            if (state.frontDesign) {
+                const frontBaked = await bakeSideComposite('front');
+                if (frontBaked) {
+                    await finalizeDesignOnServer(state.frontDesign.id, frontBaked);
+                    state.frontDesign.is_finalized = true;
+                }
+            }
+
+            // Finalize back design if it exists
+            if (state.backDesign) {
+                const backBaked = await bakeSideComposite('back');
+                if (backBaked) {
+                    await finalizeDesignOnServer(state.backDesign.id, backBaked);
+                    state.backDesign.is_finalized = true;
+                }
+            }
+
+            // Create combined mockup
+            proceedBtn.textContent = 'Creating mockup...';
+            const combinedMockupBase64 = await createCombinedMockup();
+
+            // Upload combined mockup to R2
+            let combinedMockupUrl = null;
+            if (combinedMockupBase64) {
+                const uploadResponse = await fetch(`${API_BASE}/designs/upload-mockup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${state.token}`
+                    },
+                    body: JSON.stringify({ mockupImage: combinedMockupBase64 })
+                });
+                const uploadData = await uploadResponse.json();
+                if (uploadResponse.ok) {
+                    combinedMockupUrl = uploadData.mockupUrl;
+                }
+            }
+
             modal.remove();
-            initiateCheckout(selectedSize);
+            initiateCheckout(selectedSize, combinedMockupUrl);
         } catch (error) {
             alert('Failed to finalize design: ' + error.message);
             proceedBtn.disabled = false;
@@ -782,7 +1334,7 @@ function showSizeModal() {
     });
 }
 
-async function initiateCheckout(tshirtSize) {
+async function initiateCheckout(tshirtSize, combinedMockupUrl) {
     try {
         const orderResponse = await fetch(`${API_BASE}/orders/buy-now`, {
             method: 'POST',
@@ -791,9 +1343,11 @@ async function initiateCheckout(tshirtSize) {
                 'Authorization': `Bearer ${state.token}`
             },
             body: JSON.stringify({
-                designId: state.currentDesign.id,
+                designIdFront: state.frontDesign ? state.frontDesign.id : null,
+                designIdBack: state.backDesign ? state.backDesign.id : null,
                 tshirtSize: tshirtSize,
-                quantity: 1
+                quantity: 1,
+                combinedMockupUrl: combinedMockupUrl
             })
         });
 
@@ -824,10 +1378,10 @@ async function initiateCheckout(tshirtSize) {
             key: paymentData.key,
             amount: paymentData.amount,
             currency: paymentData.currency,
-            name: 'LUXE.AI',
-            description: 'T-Shirt Purchase',
+            name: 'March Studio',
+            description: 'Custom Designed T-Shirt',
             order_id: paymentData.razorpayOrderId,
-            handler: function(response) {
+            handler: function (response) {
                 verifyPayment(response, orderData.orderId);
             },
             prefill: {
@@ -836,12 +1390,12 @@ async function initiateCheckout(tshirtSize) {
                 contact: state.user?.phone || ''
             },
             theme: {
-                color: '#ca8a04'
+                color: '#111827'
             }
         };
 
         const rzp = new Razorpay(options);
-        rzp.on('payment.failed', function(response) {
+        rzp.on('payment.failed', function (response) {
             alert('Payment failed: ' + response.error.description);
         });
         rzp.open();
@@ -880,84 +1434,35 @@ async function verifyPayment(paymentResponse, orderId) {
     }
 }
 
-// --- Professional Drag & Resize Engine (Interact.js) ---
-function initInteractJS() {
-    if (!state.currentDesign) {
-        state.currentDesign = { x: 0, y: 0, scale: 1 };
-    }
-
-    interact('#design-wrapper')
-        .draggable({
-            inertia: true,
-            modifiers: [
-                interact.modifiers.restrictRect({
-                    restriction: 'parent',
-                    endOnly: true
-                })
-            ],
-            autoScroll: true,
-            listeners: {
-                move: dragMoveListener,
-            }
+// --- Google OAuth Handler ---
+async function handleGoogleCallback(response) {
+    try {
+        const res = await fetch(`${API_BASE}/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: response.credential })
         });
 
-    DOM.resizeHandle.addEventListener('mousedown', initResize);
-    DOM.resizeHandle.addEventListener('touchstart', initResize, { passive: false });
-}
+        const data = await res.json();
 
-let startY = 0;
-let startScale = 1;
-
-function initResize(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    startY = e.clientY || (e.touches && e.touches[0].clientY);
-    startScale = state.currentDesign.scale || 1;
-
-    window.addEventListener('mousemove', resizeMoveListener);
-    window.addEventListener('touchmove', resizeMoveListener, { passive: false });
-    window.addEventListener('mouseup', stopResize);
-    window.addEventListener('touchend', stopResize);
-}
-
-function resizeMoveListener(e) {
-    e.preventDefault();
-    if (!state.currentDesign) return;
-
-    const currentY = e.clientY || (e.touches && e.touches[0].clientY);
-    const deltaY = startY - currentY;
-    let newScale = startScale + (deltaY * 0.01);
-
-    newScale = Math.max(0.3, Math.min(newScale, 2.5));
-
-    applyTransform(state.currentDesign.x, state.currentDesign.y, newScale);
-}
-
-function stopResize() {
-    window.removeEventListener('mousemove', resizeMoveListener);
-    window.removeEventListener('touchmove', resizeMoveListener);
-    window.removeEventListener('mouseup', stopResize);
-    window.removeEventListener('touchend', stopResize);
-}
-
-function dragMoveListener(event) {
-    if (!state.currentDesign) return;
-
-    const scale = state.currentDesign.scale || 1;
-    state.currentDesign.x += (event.dx / scale);
-    state.currentDesign.y += (event.dy / scale);
-
-    applyTransform(state.currentDesign.x, state.currentDesign.y, scale);
-}
-
-function applyTransform(x, y, scale) {
-    if (state.currentDesign) {
-        state.currentDesign.x = x;
-        state.currentDesign.y = y;
-        state.currentDesign.scale = scale;
+        if (res.ok) {
+            state.token = data.token;
+            state.user = data.user;
+            localStorage.setItem('luxe_token', state.token);
+            state.generationsLeft = 5 - state.user.generationsUsed;
+            showApp();
+            loadHistory();
+        } else {
+            showAuthError(data.error || 'Google Authentication failed');
+        }
+    } catch (error) {
+        console.error('Google Auth Error:', error);
+        showAuthError('Connection error during Google Sign-in');
     }
-    DOM.designWrapper.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
 }
+
+// Expose explicitly to window so the Google script can trigger it
+window.handleGoogleCallback = handleGoogleCallback;
 
 // Start the app
 init();
