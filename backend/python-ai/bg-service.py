@@ -6,24 +6,28 @@ from PIL import Image
 
 app = Flask(__name__)
 
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok", "service": "bg-removal"}), 200
+
 @app.route('/remove-bg', methods=['POST'])
 def remove_background():
     print("🐍 Received request to remove background...")
     try:
         data = request.json
         base64_img = data.get('image')
-        
+
         if not base64_img:
             return jsonify({"error": "No image provided"}), 400
 
         # 1. Clean the base64 string and decode it
         if ',' in base64_img:
             base64_img = base64_img.split(',')[1]
-        
+
         img_data = base64.b64decode(base64_img)
         input_image = Image.open(BytesIO(img_data))
 
-        # 2. Process with rembg (this is the magic)
+        # 2. Process with rembg
         output_image = remove(input_image)
 
         # 3. Convert back to base64
@@ -39,5 +43,6 @@ def remove_background():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # Running on port 5001 so it doesn't conflict with your Node server
-    app.run(port=5001)
+    # Running on port 5001 so it doesn't conflict with the Node server on 3000
+    print("🐍 Background removal service starting on http://localhost:5001")
+    app.run(host='127.0.0.1', port=5001, debug=False)
