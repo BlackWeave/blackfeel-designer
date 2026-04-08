@@ -143,5 +143,48 @@ export const vertexAiService = {
             hasSanitized = true; // Set flag so we only retry once
 
         } // End of While Loop
+    },
+
+    async editImage(userPrompt, referenceImageBase64) {
+        console.log(`\n📡 GCP Project: ${process.env.GCP_PROJECT_ID} - EDIT MODE`);
+
+        const fullPrompt = `Edit the provided image according to these instructions: "${userPrompt}". 
+            Maintain the original professional detailed illustration style, vector art aesthetic, and clean edges. 
+            Solid white background. Standalone high-resolution graphic only. Do not change parts of the image that the prompt does not mention.`;
+
+        try {
+            // Using Gemini 3.1 Flash Image Preview for Image-to-Image
+            const response = await ai.models.generateContent({
+                model: "gemini-3.1-flash-image-preview",
+                contents: [{
+                    role: 'user',
+                    parts: [
+                        { text: fullPrompt },
+                        { inlineData: { mimeType: 'image/png', data: referenceImageBase64 } }
+                    ]
+                }],
+                config: {
+                    responseModalities: ['IMAGE'],
+                    imageConfig: { aspectRatio: "1:1", outputMimeType: "image/png" },
+                    safetySettings: [
+                        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+                        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' }
+                    ]
+                }
+            });
+
+            const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+
+            if (!imagePart?.inlineData) {
+                const reason = response.candidates?.[0]?.finishReason || 'Unknown';
+                throw new Error(`Finish Reason: ${reason}`);
+            }
+
+            console.log(`✅ Success: Edited image with Gemini.`);
+            return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+        } catch (error) {
+            console.error(`⚠️ Edit Generation Failed: ${error.message}`);
+            throw new Error("Failed to edit image. " + error.message);
+        }
     }
 };

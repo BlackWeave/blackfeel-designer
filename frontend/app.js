@@ -104,6 +104,8 @@ const DOM = {
     resizeHandle: document.getElementById('resize-handle'),
     removeDesignBtn: document.getElementById('remove-design-btn'),
     buyNowBtn: document.getElementById('buy-now-btn'),
+    editModeWrapper: document.getElementById('edit-mode-wrapper'),
+    editModeCheckbox: document.getElementById('edit-mode-checkbox'),
 
     // Side Toggle
     toggleFront: document.getElementById('toggle-front'),
@@ -132,7 +134,10 @@ const DOM = {
     inspirationMainImage: document.getElementById('inspiration-main-image'),
     inspirationQuote: document.getElementById('inspiration-quote'),
     usePromptBtn: document.getElementById('use-prompt-btn'),
-    inspirationPagination: document.getElementById('inspiration-pagination')
+    inspirationPagination: document.getElementById('inspiration-pagination'),
+
+    // Addons
+    suggestionChips: document.querySelectorAll('.suggestion-chip')
 };
 
 // --- Helper: get current design for active side ---
@@ -323,6 +328,81 @@ function setupEventListeners() {
 
     // Generate button
     DOM.generateBtn.addEventListener('click', generateDesign);
+
+    // Suggestion Chips
+    if (DOM.suggestionChips) {
+        DOM.suggestionChips.forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                const el = e.target;
+                
+                // Apply selected state
+                el.classList.add('chip-selected');
+
+                // Remove after short delay
+                setTimeout(() => {
+                    el.classList.remove('chip-selected');
+                }, 300);
+
+                const imageUrl = el.dataset.image;
+
+                if (imageUrl) {
+                    if (!state.token) {
+                        showAuthModal();
+                        return;
+                    }
+
+                    // Save to backend instantly to get a valid UUID for the design.
+                    (async () => {
+                        setLoadingState(true);
+                        try {
+                            const response = await fetch(`${API_BASE}/designs/curated`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${state.token}`
+                                },
+                                body: JSON.stringify({
+                                    prompt: el.textContent,
+                                    imageUrl: imageUrl,
+                                    tshirtColor: state.currentTshirtColor
+                                })
+                            });
+
+                            const data = await response.json();
+                            if (!response.ok) throw new Error(data.error);
+
+                            const newDesign = {
+                                id: data.designId,
+                                url: data.imageUrl,
+                                prompt: el.textContent,
+                                x: 0,
+                                y: 0,
+                                scale: 1
+                            };
+                            
+                            loadDesignToCanvas(newDesign);
+                            updateUI();
+                        } catch (error) {
+                            console.error('Error loading curated design:', error);
+                            alert('Failed to load curated design.');
+                        } finally {
+                            setLoadingState(false);
+                        }
+                    })();
+                } else {
+                    // Inject prompt
+                    DOM.promptInput.value = el.textContent;
+                    DOM.promptInput.focus();
+
+                    // Pulse input for feedback
+                    DOM.promptInput.classList.add('input-pulse');
+                    setTimeout(() => {
+                        DOM.promptInput.classList.remove('input-pulse');
+                    }, 400);
+                }
+            });
+        });
+    }
 
     // Remove design button
     if (DOM.removeDesignBtn) {
@@ -705,6 +785,15 @@ function updateUI() {
                 DOM.buyNowBtn.disabled = true;
             }
         }
+
+        // Show/hide edit mode toggle
+        const currentDesign = getCurrentDesign();
+        if (currentDesign && DOM.editModeWrapper) {
+            DOM.editModeWrapper.classList.remove('hidden');
+        } else if (DOM.editModeWrapper) {
+            DOM.editModeWrapper.classList.add('hidden');
+            if (DOM.editModeCheckbox) DOM.editModeCheckbox.checked = false;
+        }
     }
 }
 
@@ -792,7 +881,7 @@ function applyTransform(x, y, scale) {
 
 // --- Design Generation ---
 async function generateDesign() {
-    const prompt = DOM.promptInput.value.trim();
+    let prompt = DOM.promptInput.value.trim();
     if (!prompt) {
         alert('Please describe your design vision');
         return;
@@ -805,17 +894,29 @@ async function generateDesign() {
 
     setLoadingState(true);
 
+    const isEditMode = DOM.editModeCheckbox.checked;
+    const currentDesign = getCurrentDesign();
+
+    // Determine Endpoint and Payload
+    const endpoint = isEditMode && currentDesign ? `${API_BASE}/designs/edit` : `${API_BASE}/designs/generate`;
+    const payload = {
+        prompt: prompt,
+        tshirtColor: state.currentTshirtColor
+    };
+
+    if (isEditMode && currentDesign) {
+        payload.designId = currentDesign.id;
+        console.log(`✏️ Edit Mode active. Modifying design ID: ${currentDesign.id}`);
+    }
+
     try {
-        const response = await fetch(`${API_BASE}/designs/generate`, {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${state.token}`
             },
-            body: JSON.stringify({
-                prompt: prompt,
-                tshirtColor: state.currentTshirtColor
-            })
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();
@@ -826,7 +927,7 @@ async function generateDesign() {
 
         const imageUrl = data.imageUrl;
 
-        console.log(`🎨 Generated ${state.currentSide} design received:`, imageUrl);
+        console.log(`🎨 ${isEditMode ? 'Edited' : 'Generated'} ${state.currentSide} design received:`, imageUrl);
 
         // Preload image with timeout
         await new Promise((resolve, reject) => {
@@ -856,14 +957,9 @@ async function generateDesign() {
 
         handleNewDesign(imageUrl, prompt, data);
 
-    } catch (error) {
-        console.error('Generation failed:', error);
+        // Reset edit checkbox after successful edit
+        if (DOM.editModeCheckbox) DOM.editModeCheckbox.checked = false;
 
-        if (error.message === 'Failed to load generated image') {
-            alert('Design was generated but the image could not be loaded. Please check your internet connection and try again.');
-        } else {
-            alert(error.message || 'Failed to generate design');
-        }
     } finally {
         setLoadingState(false);
     }
