@@ -59,9 +59,11 @@
 
           <div class="prompt-shell">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <label for="prompt-input" class="prompt-label" style="margin-bottom: 0;">
-                Describe your design
-              </label>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <label for="prompt-input" class="prompt-label" style="margin-bottom: 0;">
+                  Describe your design
+                </label>
+              </div>
               <button id="inspiration-btn" class="btn-inspiration">
                 <span style="font-size: 0.9rem;">✨</span>
                 <span>NEED INSPIRATION?</span>
@@ -70,10 +72,24 @@
             <div class="prompt-row">
               <textarea id="prompt-input" rows="3"
                 placeholder="Eg. A soft line-drawing of a coffee mug in warm brown ink"></textarea>
-              <button id="generate-btn" class="btn-primary">
-                <span id="btn-loader" class="btn-loader hidden"></span>
-                <span class="btn-primary-text">Generate</span>
-              </button>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button id="generate-btn" class="btn-primary">
+                  <span id="btn-loader" class="btn-loader hidden"></span>
+                  <span class="btn-primary-text">Generate</span>
+                </button>
+                <label id="edit-mode-wrapper" class="hidden"
+                  style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #4b5563; cursor: pointer;">
+                  <input type="checkbox" id="edit-mode-checkbox" style="cursor: pointer;">
+                  Edit current design
+                </label>
+              </div>
+            </div>
+            <div class="inline-suggestions" id="inline-suggestions">
+              <span class="suggestion-chip"
+                data-image="https://cdn.blackfeel.co.in/designer-inspirations/1c267efb-5c6a-4e3e-9746-cb74341152db-removebg-preview.png">The
+                Unseen Shit</span>
+              <!-- <span class="suggestion-chip">Neon cyberpunk skyline</span>
+              <span class="suggestion-chip">Vintage national park poster</span> -->
             </div>
             <div id="rate-limit-display" class="prompt-meta"></div>
           </div>

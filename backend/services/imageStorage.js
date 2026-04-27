@@ -119,5 +119,16 @@ export const imageStorage = {
             console.error('downloadAndUploadToR2 error:', error.message);
             throw error;
         }
+    },
+
+    async downloadAsBase64(imageUrl) {
+        try {
+            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+            const buffer = Buffer.from(response.data);
+            return buffer.toString('base64');
+        } catch (error) {
+            console.error('Failed to download image for editing:', error.message);
+            throw new Error('Could not fetch reference image for editing.');
+        }
     }
 };
