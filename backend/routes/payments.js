@@ -2,8 +2,8 @@ import express from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { db } from '../models/database.js';
 import { razorpayService } from '../services/razorpay.js';
-import { cloudinaryService } from '../services/cloudinary.js';
 import { imageStorage } from '../services/imageStorage.js';
+import { enhanceService } from '../services/enhanceService.js';
 
 const router = express.Router();
 
@@ -54,18 +54,13 @@ router.post('/verify', authMiddleware, async (req, res) => {
 
         // ✨ TRIGGER 4K UPSCALING for front design
         if (order_found.processed_image_url) {
-            console.log(`🚀 Upscaling FRONT design for Order ${order_found.id} to 4K...`);
+            console.log(`🚀 Upscaling FRONT design for Order ${order_found.id} to 4K print-ready via local script...`);
             try {
-                const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
-                    order_found.processed_image_url, 
-                    `${order_found.id}-front`
+                const fileName = `${order_found.id}-front-4k-print.png`;
+                const highResR2Url = await enhanceService.enhanceAndUploadToR2(
+                    order_found.processed_image_url,
+                    fileName
                 );
-                console.log(`✅ 4K Front Design generated on Cloudinary`);
-
-                const r2PublicUrlBase = process.env.CLOUDFLARE_R2_PUBLIC_URL;
-                const targetKey = `finals/${order_found.id}-front-4k-print.png`;
-                
-                const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
                 console.log(`✅ 4K Front Design stored in R2 at: ${highResR2Url}`);
 
                 await db.updateFulfillmentRawDesignUrl(order_found.id, highResR2Url, 'front');
@@ -78,17 +73,13 @@ router.post('/verify', authMiddleware, async (req, res) => {
 
         // ✨ TRIGGER 4K UPSCALING for back design
         if (order_found.back_processed_image_url) {
-            console.log(`🚀 Upscaling BACK design for Order ${order_found.id} to 4K...`);
+            console.log(`🚀 Upscaling BACK design for Order ${order_found.id} to 4K print-ready via local script...`);
             try {
-                const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
-                    order_found.back_processed_image_url, 
-                    `${order_found.id}-back`
+                const fileName = `${order_found.id}-back-4k-print.png`;
+                const highResR2Url = await enhanceService.enhanceAndUploadToR2(
+                    order_found.back_processed_image_url,
+                    fileName
                 );
-                console.log(`✅ 4K Back Design generated on Cloudinary`);
-
-                const targetKey = `finals/${order_found.id}-back-4k-print.png`;
-                
-                const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
                 console.log(`✅ 4K Back Design stored in R2 at: ${highResR2Url}`);
 
                 await db.updateFulfillmentRawDesignUrl(order_found.id, highResR2Url, 'back');
@@ -147,16 +138,14 @@ router.post('/webhook', async (req, res) => {
                     // ✨ TRIGGER 4K UPSCALING for Webhook - FRONT
                     if (order.processed_image_url) {
                         try {
-                            console.log(`🚀 Webhook: Upscaling FRONT design for Order ${order.id} to 4K...`);
+                            console.log(`🚀 Webhook: Upscaling FRONT design for Order ${order.id} to 4K print-ready via local script...`);
                             
-                            const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
-                                order.processed_image_url, 
-                                `${order.id}-front`
+                            const fileName = `${order.id}-front-4k-print.png`;
+                            const highResR2Url = await enhanceService.enhanceAndUploadToR2(
+                                order.processed_image_url,
+                                fileName
                             );
 
-                            const targetKey = `finals/${order.id}-front-4k-print.png`;
-                            
-                            const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
                             console.log(`✅ Webhook: 4K Front Design stored in R2 at: ${highResR2Url}`);
 
                             await db.updateFulfillmentRawDesignUrl(order.id, highResR2Url, 'front');
@@ -170,16 +159,14 @@ router.post('/webhook', async (req, res) => {
                     // ✨ TRIGGER 4K UPSCALING for Webhook - BACK
                     if (order.back_processed_image_url) {
                         try {
-                            console.log(`🚀 Webhook: Upscaling BACK design for Order ${order.id} to 4K...`);
+                            console.log(`🚀 Webhook: Upscaling BACK design for Order ${order.id} to 4K print-ready via local script...`);
                             
-                            const highResCloudinaryUrl = await cloudinaryService.uploadAndUpscaleTo4K(
-                                order.back_processed_image_url, 
-                                `${order.id}-back`
+                            const fileName = `${order.id}-back-4k-print.png`;
+                            const highResR2Url = await enhanceService.enhanceAndUploadToR2(
+                                order.back_processed_image_url,
+                                fileName
                             );
 
-                            const targetKey = `finals/${order.id}-back-4k-print.png`;
-                            
-                            const highResR2Url = await imageStorage.downloadAndUploadToR2(highResCloudinaryUrl, targetKey);
                             console.log(`✅ Webhook: 4K Back Design stored in R2 at: ${highResR2Url}`);
 
                             await db.updateFulfillmentRawDesignUrl(order.id, highResR2Url, 'back');
