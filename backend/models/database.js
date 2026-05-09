@@ -206,7 +206,7 @@ export const db = {
         // Use front tshirt_color if available, otherwise use back
         const tshirtColor = details.front_tshirt_color || details.back_tshirt_color;
 
-        return await pool.query(
+        const result = await pool.query(
             `INSERT INTO fulfillment_queue
          (order_id, design_id, tshirt_color, tshirt_size, print_mockup_url, raw_design_url_front, raw_design_url_back)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -221,6 +221,7 @@ export const db = {
                 details.back_processed_url || null
             ]
         );
+        return result.rows[0];
     },
 
     async updateFulfillmentRawDesignUrl(orderId, rawDesignUrl, side = 'front') {
